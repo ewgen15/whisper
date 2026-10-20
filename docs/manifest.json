@@ -1,8 +1,8 @@
 {
-  "name": "Diary",
-  "short_name": "Diary",
+  "name": "Whisper",
+  "short_name": "Whisper",
   "description": "Голосовий щоденник",
-  "start_url": "./prototype.html",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#E080B0",
   "theme_color": "#1E1028",
@@ -16,7 +16,8 @@
     {
       "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
