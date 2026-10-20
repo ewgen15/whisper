@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from .enrichment import enrich
 from .transcription import transcribe
+from .storage import save_entry, get_entries
 
 app = FastAPI(title="Diary Backend", version="0.1.0")
 
@@ -24,6 +25,10 @@ ALLOWED_AUDIO_TYPES = {
 
 class EnrichRequest(BaseModel):
     text: str
+
+
+class SaveRequest(BaseModel):
+    entry: dict
 
 
 @app.get("/health")
@@ -52,3 +57,14 @@ async def enrich_text(req: EnrichRequest):
         raise HTTPException(status_code=422, detail="Text cannot be empty")
     result = enrich(req.text)
     return result
+
+
+@app.post("/save")
+async def save(req: SaveRequest):
+    saved = save_entry(req.entry)
+    return saved
+
+
+@app.get("/entries")
+async def entries(limit: int = 50):
+    return get_entries(limit=limit)
