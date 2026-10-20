@@ -569,6 +569,11 @@ body {
 <div class="screen active" id="home">
   <div class="hdr">
     <span class="hdr-logo">Diary</span>
+    <button onclick="openSettings()" style="background:none;border:none;cursor:pointer;padding:4px;opacity:0.45" aria-label="Налаштування">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
   </div>
   <div class="home-scroll" id="homeScroll">
     <div id="homeEntries"></div>
@@ -684,76 +689,46 @@ body {
   <button class="btn-del" onclick="discardEntry()">Видалити запис</button>
 </div>
 
+<!-- Settings sheet -->
+<div class="overlay" id="settingsOverlay" onclick="closeSettings()"></div>
+<div class="sheet" id="settingsSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <div class="sheet-title">Налаштування</div>
+    <div class="sheet-sub">Адреса бекенду для транскрипції</div>
+  </div>
+  <div style="margin-bottom:16px">
+    <div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.4;margin-bottom:6px">Backend URL</div>
+    <input id="backendInput" type="url" inputmode="url"
+      style="width:100%;background:rgba(30,16,40,0.05);border:1.5px solid rgba(30,16,40,0.12);border-radius:12px;padding:12px 14px;font-family:'Fixel Text',sans-serif;font-size:0.88rem;color:#1E1028;outline:none"
+      placeholder="http://192.168.0.101:8000">
+    <div style="font-size:0.7rem;opacity:0.35;margin-top:6px">Введи IP міні PC. Обидва пристрої мають бути в одному WiFi.</div>
+  </div>
+  <div class="sheet-btns">
+    <button class="btn-sec" onclick="closeSettings()">Скасувати</button>
+    <button class="btn-pri on" onclick="saveSettings()">Зберегти</button>
+  </div>
+</div>
+
 </div><!-- /app -->
 
 <script>
-/* ── Sample data ───────────────────────────────────── */
-const ENTRIES = [
-  {
-    id: 1,
-    title: "Розчарування через непродуктивний день",
-    mood: ["засмучення","розчарування","надія"],
-    duration: "2:14",
-    entryType: "Рефлексія",
-    timeOfDay: "Ранок",
-    emotionalState: "Поганий",
-    physicalState: "Нейтральний",
-    context: "Ремонт і налаштування дому",
-    project: "Система опалення та водопостачання",
-    tags: ["опалення","насос","вода","ремонт"],
-    text: "Вчора я був дуже засмучений, адже цілий день, який міг витратити на роботу, провів на налаштуванні опалення та насоса. Ми вирішили, що потрібно переробити схему подачі води в будинку. Вона не є критичною, але все ж важливою. Я не зміг зробити нічого істотного з того, що планував, і це дуже неприємно, бо роботи ще багато, а прогрес, по суті, на нулі. Знайшли стерні, включили опалення — зараз буду дивитися, що там за ніч нагрілося. Спочатку трішки засмутився, але потім вирішив, що це був своєрідний вихідний.",
-    date: "19 жовтня 2026, 8:18",
-    month: "Жовтень 2026"
-  },
-  {
-    id: 2,
-    title: "Ранкові думки про новий проект",
-    mood: ["натхнення","тривога"],
-    duration: "1:45",
-    entryType: "Ідея",
-    timeOfDay: "Ранок",
-    emotionalState: "Хороший",
-    physicalState: "Хороший",
-    context: "Ранкова кава, плануємо тиждень",
-    project: "Diary App",
-    tags: ["планування","мобільний додаток","ідеї"],
-    text: "Сьогодні вранці за кавою прийшла ідея щодо нового проекту. Хочу зробити мобільний додаток для щоденника, де можна записувати голосові нотатки. Це буде просто і зручно — одна велика кнопка, і все. Трошки тривожить обсяг роботи, але загалом настрій бойовий.",
-    date: "20 жовтня 2026, 7:45",
-    month: "Жовтень 2026"
-  },
-  {
-    id: 3,
-    title: "Прогулянка і свіжий осінній ранок",
-    mood: ["спокій","радість"],
-    duration: "0:58",
-    entryType: "Щоденник",
-    timeOfDay: "Ранок",
-    emotionalState: "Хороший",
-    physicalState: "Хороший",
-    context: "Прогулянка в парку",
-    project: null,
-    tags: ["природа","осінь","прогулянка"],
-    text: "Чудова прогулянка. Осінь дуже гарна цього року. Листя жовте і червоне, повітря свіже. Просто йшов і думав ні про що. Дуже добре.",
-    date: "18 жовтня 2026, 8:02",
-    month: "Жовтень 2026"
-  },
-  {
-    id: 4,
-    title: "Вечірня рефлексія після зустрічі",
-    mood: ["втома","вдячність"],
-    duration: "3:02",
-    entryType: "Рефлексія",
-    timeOfDay: "Вечір",
-    emotionalState: "Нейтральний",
-    physicalState: "Поганий",
-    context: "Повернувся зі зустрічі з партнерами",
-    project: null,
-    tags: ["зустріч","партнери","рефлексія"],
-    text: "Довга зустріч. Багато обговорювали, прийшли до кількох важливих рішень. Втомився але задоволений — здається рухаємось у правильному напрямку. Треба виспатись.",
-    date: "17 жовтня 2026, 21:30",
-    month: "Жовтень 2026"
-  }
-];
+/* ── Storage ───────────────────────────────────────── */
+let ENTRIES = [];
+
+function loadEntries() {
+  try { ENTRIES = JSON.parse(localStorage.getItem('diary_entries') || '[]'); }
+  catch { ENTRIES = []; }
+}
+
+function persistEntries() {
+  try { localStorage.setItem('diary_entries', JSON.stringify(ENTRIES)); }
+  catch {}
+}
+
+function getBackendUrl() {
+  return (localStorage.getItem('diary_backend') || 'http://192.168.0.101:8000').replace(/\/$/, '');
+}
 
 /* ── State ─────────────────────────────────────────── */
 let currentScreen = 'home';
@@ -761,8 +736,10 @@ let prevScreen    = null;
 let isRecording   = false;
 let elapsed       = 0;
 let timerInterval = null;
-let pendingEntry  = null;
 let hintHidden    = false;
+let mediaRecorder = null;
+let audioChunks   = [];
+let enrichedData  = null;
 
 /* ── DOM refs ──────────────────────────────────────── */
 const btnAnchor  = document.getElementById('btnAnchor');
@@ -778,7 +755,7 @@ const saveBtn    = document.getElementById('saveBtn');
 const sheetDur   = document.getElementById('sheetDur');
 
 /* ── Navigation ────────────────────────────────────── */
-function showScreen(id, from) {
+function showScreen(id) {
   const prev = document.getElementById(prevScreen || currentScreen);
   const next = document.getElementById(id);
   if (prev && prev !== next) {
@@ -790,7 +767,6 @@ function showScreen(id, from) {
   next.classList.add('active');
   prevScreen    = currentScreen;
   currentScreen = id;
-
   btnAnchor.classList.toggle('visible', id === 'home');
 }
 
@@ -809,84 +785,111 @@ function goBack() {
   btnAnchor.classList.toggle('visible', currentScreen === 'home');
 }
 
-/* ── Entry cards renderer ──────────────────────────── */
+/* ── Settings ──────────────────────────────────────── */
+function openSettings() {
+  document.getElementById('backendInput').value = getBackendUrl();
+  document.getElementById('settingsOverlay').classList.add('on');
+  document.getElementById('settingsSheet').classList.add('up');
+}
+function closeSettings() {
+  document.getElementById('settingsOverlay').classList.remove('on');
+  document.getElementById('settingsSheet').classList.remove('up');
+}
+function saveSettings() {
+  const url = document.getElementById('backendInput').value.trim();
+  if (url) try { localStorage.setItem('diary_backend', url); } catch {}
+  closeSettings();
+}
+
+/* ── Helpers ───────────────────────────────────────── */
+function fmt(s) {
+  return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+}
+
+function monthLabel(date) {
+  const s = date.toLocaleString('uk', { month: 'long', year: 'numeric' });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function buildBars() {
+  recBars.innerHTML = Array.from({length:26}, (_,i) => {
+    const h = 8 + Math.round(Math.abs(Math.sin(i*0.4+1))*32);
+    return `<div class="rec-bar" style="--h:${h}px;animation-delay:${(i*0.04).toFixed(2)}s;animation-duration:${(0.7+Math.random()*0.5).toFixed(2)}s"></div>`;
+  }).join('');
+}
+
+function buildMiniWave() {
+  document.getElementById('miniBars').innerHTML =
+    Array.from({length:30}, (_,i) =>
+      `<div class="mini-bar" style="height:${4+Math.round(Math.abs(Math.sin(i*0.5))*18+Math.random()*8)}px"></div>`
+    ).join('');
+}
+
+/* ── Render ────────────────────────────────────────── */
 function cardHTML(e) {
   const moods = e.mood.map(m => `<span class="mood-chip">${m}</span>`).join('');
-  return `
-    <div class="entry-card" onclick="openDetail(${e.id})">
-      <div class="card-title">${e.title}</div>
-      <div class="card-moods">${moods}</div>
-      <div class="card-meta">${e.duration} &nbsp;·&nbsp; ${e.entryType} &nbsp;·&nbsp; ${e.timeOfDay}</div>
-    </div>`;
+  return `<div class="entry-card" onclick="openDetail(${e.id})">
+    <div class="card-title">${e.title}</div>
+    <div class="card-moods">${moods}</div>
+    <div class="card-meta">${e.duration} &nbsp;·&nbsp; ${e.entryType} &nbsp;·&nbsp; ${e.timeOfDay}</div>
+  </div>`;
 }
 
 function renderHome() {
-  const container = document.getElementById('homeEntries');
-  const showAll   = document.getElementById('showAll');
-  const list = ENTRIES.slice(0, 3);
-  container.innerHTML = list.map(cardHTML).join('');
+  const showAll = document.getElementById('showAll');
+  document.getElementById('homeEntries').innerHTML =
+    ENTRIES.length
+      ? ENTRIES.slice(0,3).map(cardHTML).join('')
+      : '<div style="text-align:center;opacity:.35;padding:48px 0 0;font-size:.85rem">Записів ще немає</div>';
   showAll.hidden = ENTRIES.length <= 3;
 }
 
-function renderList(entries) {
-  const container = document.getElementById('listEntries');
-  if (!entries.length) {
-    container.innerHTML = '<div style="text-align:center;opacity:.35;padding:40px 0;font-size:.85rem;letter-spacing:.04em">Нічого не знайдено</div>';
+function renderList(list) {
+  const c = document.getElementById('listEntries');
+  if (!list.length) {
+    c.innerHTML = '<div style="text-align:center;opacity:.35;padding:40px 0;font-size:.85rem;letter-spacing:.04em">Нічого не знайдено</div>';
     return;
   }
-  let html = '';
-  let lastMonth = '';
-  entries.forEach(e => {
+  let html = '', lastMonth = '';
+  list.forEach(e => {
     if (e.month !== lastMonth) {
       html += `<div class="month-row">${e.month}</div>`;
       lastMonth = e.month;
     }
     html += cardHTML(e);
   });
-  container.innerHTML = html;
+  c.innerHTML = html;
 }
 
-/* ── Detail ────────────────────────────────────────── */
 function openDetail(id) {
   const e = ENTRIES.find(x => x.id === id);
   if (!e) return;
-  const pillClass = e.emotionalState === 'Поганий' ? 'pill-bad'
-                  : e.emotionalState === 'Хороший' ? 'pill-good' : 'pill-ok';
-  const physClass = e.physicalState  === 'Поганий' ? 'pill-bad'
-                  : e.physicalState  === 'Хороший' ? 'pill-good' : 'pill-ok';
-  const tags  = e.tags.map(t => `<span class="mood-chip">${t}</span>`).join('');
-  const moods = e.mood.map(m => `<span class="mood-chip">${m}</span>`).join('');
-  const miniW = Array.from({length: 28}, (_,i) =>
+  const pE = e.emotionalState === 'Поганий' ? 'pill-bad' : e.emotionalState === 'Хороший' ? 'pill-good' : 'pill-ok';
+  const pP = e.physicalState  === 'Поганий' ? 'pill-bad' : e.physicalState  === 'Хороший' ? 'pill-good' : 'pill-ok';
+  const miniW = Array.from({length:28}, (_,i) =>
     `<div class="mini-bar" style="height:${6+Math.round(Math.sin(i*0.7)*10+Math.random()*12)}px"></div>`).join('');
-
   document.getElementById('detailBody').innerHTML = `
     <div class="det-eyebrow">${e.entryType} &nbsp;·&nbsp; ${e.timeOfDay}</div>
     <div class="det-title">${e.title}</div>
     <div class="det-pills">
-      <span class="pill ${pillClass}">😔 ${e.emotionalState}</span>
-      <span class="pill ${physClass}">🏃 ${e.physicalState}</span>
+      <span class="pill ${pE}">😔 ${e.emotionalState}</span>
+      <span class="pill ${pP}">🏃 ${e.physicalState}</span>
     </div>
-    <div class="card-moods" style="margin-bottom:0">${moods}</div>
+    <div class="card-moods" style="margin-bottom:0">${e.mood.map(m=>`<span class="mood-chip">${m}</span>`).join('')}</div>
     <div class="divider"></div>
     <div class="det-text">${e.text}</div>
-    <div class="det-label">Контекст</div>
-    <div class="det-value">${e.context}</div>
+    ${e.context ? `<div class="det-label">Контекст</div><div class="det-value">${e.context}</div>` : ''}
     ${e.project ? `<div class="det-label">Проект</div><div class="det-value">${e.project}</div>` : ''}
-    <div class="det-label">Теги</div>
-    <div class="det-tags">${tags}</div>
+    ${e.tags?.length ? `<div class="det-label">Теги</div><div class="det-tags">${e.tags.map(t=>`<span class="mood-chip">${t}</span>`).join('')}</div>` : ''}
     <div class="det-audio">
-      <button class="play-mini" style="width:32px;height:32px" aria-label="Play">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="#FFF5EE"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-      </button>
       <div class="mini-bars" style="height:24px">${miniW}</div>
       <span class="sheet-dur">${e.duration}</span>
     </div>
     <div class="det-date">${e.date}</div>`;
-
   showScreen('detail');
 }
 
-/* ── List screen ───────────────────────────────────── */
+/* ── List filters ──────────────────────────────────── */
 const TYPES = ['Всі','Рефлексія','Ідея','Щоденник','Подія'];
 let activeFilter = 'Всі';
 
@@ -894,15 +897,9 @@ function renderFilters() {
   document.getElementById('filterRow').innerHTML =
     TYPES.map(t => `<button class="f-chip${t===activeFilter?' on':''}" onclick="setFilter('${t}')">${t}</button>`).join('');
 }
-
-function setFilter(type) {
-  activeFilter = type;
-  renderFilters();
-  filterEntries();
-}
-
+function setFilter(t) { activeFilter = t; renderFilters(); filterEntries(); }
 function filterEntries() {
-  const q = (document.getElementById('searchInput').value || '').toLowerCase();
+  const q = (document.getElementById('searchInput').value||'').toLowerCase();
   let list = ENTRIES;
   if (activeFilter !== 'Всі') list = list.filter(e => e.entryType === activeFilter);
   if (q) list = list.filter(e => e.title.toLowerCase().includes(q) || e.text.toLowerCase().includes(q));
@@ -910,35 +907,19 @@ function filterEntries() {
 }
 
 /* ── Recording ─────────────────────────────────────── */
-function buildBars() {
-  recBars.innerHTML = Array.from({length:26}, (_,i) => {
-    const h = 8 + Math.round(Math.abs(Math.sin(i*0.4+1))*32);
-    const delay = (i * 0.04).toFixed(2);
-    return `<div class="rec-bar" style="--h:${h}px;animation-delay:${delay}s;animation-duration:${(0.7+Math.random()*0.5).toFixed(2)}s"></div>`;
-  }).join('');
-}
+recBtn.addEventListener('click', () => isRecording ? stopRecording() : startRecording());
 
-function buildMiniWave() {
-  const dur = sheetDur.parentElement ? sheetDur : document.getElementById('sheetDur');
-  document.getElementById('miniBars').innerHTML =
-    Array.from({length:30}, (_,i) =>
-      `<div class="mini-bar" style="height:${4+Math.round(Math.abs(Math.sin(i*0.5))*18+Math.random()*8)}px"></div>`
-    ).join('');
-}
-
-function fmt(s) {
-  return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
-}
-
-recBtn.addEventListener('click', () => {
-  if (!isRecording) {
-    startRecording();
-  } else {
-    stopRecording();
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.start(100);
+  } catch {
+    alert('Не вдалося отримати доступ до мікрофону.\nПеревір дозволи в Safari.');
+    return;
   }
-});
-
-function startRecording() {
   isRecording = true;
   elapsed = 0;
   buildBars();
@@ -951,10 +932,7 @@ function startRecording() {
   document.getElementById('homeScroll').style.pointerEvents = 'none';
   recOverlay.classList.add('visible');
   recTimer.textContent = fmt(0);
-  timerInterval = setInterval(() => {
-    elapsed++;
-    recTimer.textContent = fmt(elapsed);
-  }, 1000);
+  timerInterval = setInterval(() => { elapsed++; recTimer.textContent = fmt(elapsed); }, 1000);
 }
 
 function stopRecording() {
@@ -965,29 +943,71 @@ function stopRecording() {
   btnWrap.classList.remove('rec');
   sheetDur.textContent = fmt(elapsed);
   buildMiniWave();
-  showSheet();
+
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+      mediaRecorder.stream.getTracks().forEach(t => t.stop());
+      mediaRecorder = null;
+      showSheet(blob);
+    };
+    mediaRecorder.stop();
+  } else {
+    showSheet(null);
+  }
 }
 
-function showSheet() {
+/* ── Sheet + transcription ─────────────────────────── */
+function setStatus(icon, text) {
+  document.getElementById('statusIcon').innerHTML = icon;
+  document.getElementById('statusText').textContent = text;
+}
+
+function showSheet(blob) {
   overlay.classList.add('on');
   sheet.classList.add('up');
   saveBtn.classList.remove('on');
+  enrichedData = null;
   document.getElementById('sheetTitle').textContent = 'Твій запис';
   document.getElementById('sheetSub').textContent   = 'Зачекай кілька секунд…';
-  document.getElementById('statusIcon').innerHTML   = '<div class="spinner"></div>';
   document.getElementById('statusIcon').classList.remove('done');
-  document.getElementById('statusText').textContent = 'Транскрибується…';
-  setTimeout(markReady, 2200);
+  setStatus('<div class="spinner"></div>', 'Надсилаємо…');
+  transcribeAndEnrich(blob);
 }
 
-function markReady() {
-  document.getElementById('sheetTitle').textContent = 'Готово до збереження';
-  document.getElementById('sheetSub').textContent   = 'Збережи або переслухай';
-  document.getElementById('statusIcon').innerHTML   =
-    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4CAF72" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-  document.getElementById('statusIcon').classList.add('done');
-  document.getElementById('statusText').textContent = 'Транскрибовано ✓';
-  saveBtn.classList.add('on');
+async function transcribeAndEnrich(blob) {
+  try {
+    if (!blob) throw new Error('Аудіо недоступне');
+    const url = getBackendUrl();
+
+    setStatus('<div class="spinner"></div>', 'Транскрибується…');
+    const fd = new FormData();
+    fd.append('file', blob, 'recording.webm');
+    const tr = await fetch(`${url}/transcribe`, { method:'POST', body: fd });
+    if (!tr.ok) throw new Error(`Transcribe: ${tr.status}`);
+    const { text } = await tr.json();
+
+    setStatus('<div class="spinner"></div>', 'Аналізується…');
+    const en = await fetch(`${url}/enrich`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    if (!en.ok) throw new Error(`Enrich: ${en.status}`);
+
+    enrichedData = { ...(await en.json()), rawText: text };
+
+    document.getElementById('sheetTitle').textContent = enrichedData.title || 'Готово';
+    document.getElementById('sheetSub').textContent   = 'Збережи запис';
+    document.getElementById('statusIcon').classList.add('done');
+    setStatus('<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4CAF72" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>', 'Транскрибовано ✓');
+    saveBtn.classList.add('on');
+
+  } catch(err) {
+    document.getElementById('sheetTitle').textContent = 'Помилка';
+    document.getElementById('sheetSub').textContent   = 'Перевір backend URL в налаштуваннях';
+    setStatus('⚠️', err.message || 'Не вдалося');
+  }
 }
 
 function hideSheet() {
@@ -1000,46 +1020,42 @@ function hideSheet() {
 }
 
 function saveEntry() {
-  if (!saveBtn.classList.contains('on')) return;
-  const newEntry = {
+  if (!saveBtn.classList.contains('on') || !enrichedData) return;
+  const now = new Date();
+  const entry = {
     id: Date.now(),
-    title: "Новий запис " + new Date().toLocaleTimeString('uk',{hour:'2-digit',minute:'2-digit'}),
-    mood: ["обробляється"],
-    duration: fmt(elapsed),
-    entryType: "Щоденник",
-    timeOfDay: "День",
-    emotionalState: "Нейтральний",
-    physicalState: "Нейтральний",
-    context: "",
-    project: null,
-    tags: [],
-    text: "Запис збережено. Транскрипція буде доступна за мить.",
-    date: new Date().toLocaleString('uk',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}),
-    month: "Жовтень 2026"
+    title:         enrichedData.title          || 'Запис',
+    mood:          enrichedData.mood           || [],
+    duration:      fmt(elapsed),
+    entryType:     enrichedData.entry_type     || 'Щоденник',
+    timeOfDay:     enrichedData.time_of_day    || 'День',
+    emotionalState:enrichedData.emotional_state|| 'Нейтральний',
+    physicalState: enrichedData.physical_state || 'Нейтральний',
+    context:       enrichedData.context        || '',
+    project:       enrichedData.project        || null,
+    tags:          enrichedData.tags           || [],
+    text:          enrichedData.text           || enrichedData.rawText || '',
+    date:  now.toLocaleString('uk',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}),
+    month: monthLabel(now)
   };
-  ENTRIES.unshift(newEntry);
+  ENTRIES.unshift(entry);
+  persistEntries();
+  enrichedData = null;
   hideSheet();
   renderHome();
   renderList(ENTRIES);
 }
 
-function reRecord() {
-  hideSheet();
-  startRecording();
-}
-
-function discardEntry() {
-  hideSheet();
-}
+function reRecord()    { hideSheet(); startRecording(); }
+function discardEntry(){ hideSheet(); }
 
 /* ── Show All ──────────────────────────────────────── */
 document.getElementById('showAll').addEventListener('click', () => {
-  renderList(ENTRIES);
-  renderFilters();
-  showScreen('list');
+  renderList(ENTRIES); renderFilters(); showScreen('list');
 });
 
 /* ── Init ──────────────────────────────────────────── */
+loadEntries();
 renderHome();
 renderList(ENTRIES);
 renderFilters();
