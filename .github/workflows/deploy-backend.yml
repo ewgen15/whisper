@@ -1,0 +1,30 @@
+name: Deploy Backend to Mini PC
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.MINI_PC_TS_HOST }}
+          username: ${{ secrets.MINI_PC_USER }}
+          key: ${{ secrets.MINI_PC_SSH_KEY }}
+          script: |
+            cd ~/whisper
+            git pull origin main
+            cd backend
+            docker compose up -d --build
