@@ -1,0 +1,1047 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Diary">
+<meta name="theme-color" content="#1E1028">
+<link rel="manifest" href="manifest.json">
+<title>Diary</title>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fixel+Display:wght@700;800&family=Fixel+Text:wght@300;400;500&display=swap">
+
+<style>
+:root {
+  color-scheme: light;
+  --plum:        #1E1028;
+  --plum-mid:    #3A1A50;
+  --cream:       #FFF5EE;
+  --card-bg:     rgba(255, 248, 244, 0.80);
+  --sheet-bg:    rgba(255, 250, 247, 0.97);
+  --ring-idle:   rgba(255, 185, 200, 0.38);
+  --ring-active: rgba(210, 130, 240, 0.42);
+  --btn-size:    176px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  font-family: 'Fixel Text', system-ui, sans-serif;
+  font-weight: 300;
+  color: var(--plum);
+  background:
+    radial-gradient(ellipse at 18% 12%, #FFCBA4 0%, transparent 52%),
+    radial-gradient(ellipse at 82% 88%, #B868D8 0%, transparent 52%),
+    radial-gradient(ellipse at 68% 32%, #E8819A 0%, transparent 50%),
+    radial-gradient(ellipse at 28% 72%, #F5A8C8 0%, transparent 46%),
+    #E080B0;
+  display: flex;
+  justify-content: center;
+}
+
+.app {
+  width: 100%;
+  max-width: 430px;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── Screens ──────────────────────────────────────── */
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding-inline: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(30px);
+  transition: opacity 0.28s ease, transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.screen.active {
+  opacity: 1;
+  pointer-events: all;
+  transform: translateX(0);
+}
+.screen.out {
+  opacity: 0;
+  transform: translateX(-30px);
+  pointer-events: none;
+}
+
+/* ── Header ───────────────────────────────────────── */
+.hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: max(env(safe-area-inset-top, 0px), 52px);
+  padding-bottom: 18px;
+  flex-shrink: 0;
+}
+.hdr-logo {
+  font-family: 'Fixel Text', sans-serif;
+  font-weight: 400;
+  font-size: 0.95rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.hdr-back {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  color: var(--plum);
+  font-family: 'Fixel Text', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 300;
+  opacity: 0.65;
+  cursor: pointer;
+  padding: 0;
+  letter-spacing: 0.02em;
+}
+.hdr-title-center {
+  font-family: 'Fixel Text', sans-serif;
+  font-weight: 400;
+  font-size: 1rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+/* ── Entry card ───────────────────────────────────── */
+.entry-card {
+  background: var(--card-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.65);
+  border-radius: 20px;
+  padding: 16px 18px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+  box-shadow: 0 4px 24px rgba(30,16,40,0.09), 0 1px 4px rgba(30,16,40,0.05);
+}
+.entry-card:active { transform: scale(0.975); }
+
+.card-title {
+  font-family: 'Fixel Display', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 9px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card-moods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 9px;
+}
+.mood-chip {
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: rgba(30,16,40,0.07);
+}
+.card-meta {
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  opacity: 0.45;
+}
+
+.show-all-row {
+  text-align: center;
+  padding: 10px 0 4px;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.4;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  user-select: none;
+}
+.show-all-row:active { opacity: 0.7; }
+
+/* ── Home: scroll area above button ──────────────── */
+.home-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 260px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.home-scroll::-webkit-scrollbar { display: none; }
+
+/* ── Recording overlay (shown above btn on S2) ───── */
+.rec-overlay {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 240px;
+  top: max(env(safe-area-inset-top, 0px), 52px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  padding-inline: 20px;
+}
+.rec-overlay.visible { opacity: 1; }
+
+.rec-timer {
+  font-family: 'Fixel Display', sans-serif;
+  font-size: clamp(4rem, 18vw, 5.5rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--plum);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.88;
+  margin-bottom: 28px;
+  transform: translateY(8px);
+  transition: transform 0.4s ease;
+}
+.rec-overlay.visible .rec-timer { transform: translateY(0); }
+
+.rec-bars {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 48px;
+  width: 100%;
+  max-width: 260px;
+}
+.rec-bar {
+  flex: 1;
+  max-width: 6px;
+  border-radius: 3px;
+  background: rgba(30, 16, 40, 0.35);
+  animation: bar-wave 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes bar-wave {
+  from { height: 4px; opacity: 0.25; }
+  to   { height: var(--h, 24px); opacity: 0.5; }
+}
+
+/* ── Fixed: record button ─────────────────────────── */
+.btn-anchor {
+  position: fixed;
+  bottom: max(env(safe-area-inset-bottom, 0px), 52px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.btn-anchor.visible { opacity: 1; pointer-events: all; }
+
+.btn-wrap {
+  position: relative;
+  width: var(--btn-size);
+  height: var(--btn-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--ring-idle);
+  animation: ring-pulse 3s cubic-bezier(0.15, 0, 0.75, 1) infinite;
+  pointer-events: none;
+}
+.ring:nth-child(2) { animation-delay: 1.5s; }
+.btn-wrap.rec .ring { background: var(--ring-active); animation-duration: 1.55s; }
+.btn-wrap.rec .ring:nth-child(2) { animation-delay: 0.77s; }
+
+@keyframes ring-pulse {
+  0%   { transform: scale(1);   opacity: 0.75; }
+  100% { transform: scale(2.5); opacity: 0;    }
+}
+
+.btn {
+  position: relative; z-index: 1;
+  width: var(--btn-size); height: var(--btn-size);
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.09);
+  cursor: pointer;
+  background:
+    radial-gradient(circle at 40% 28%, rgba(255,255,255,0.065) 0%, transparent 56%),
+    var(--plum);
+  display: flex; align-items: center; justify-content: center;
+  animation: btn-breathe 4.2s ease-in-out infinite;
+  box-shadow:
+    0 14px 48px rgba(30,16,40,0.42), 0 3px 12px rgba(30,16,40,0.24),
+    inset 0 2px 3px rgba(255,255,255,0.08), inset 0 -4px 8px rgba(0,0,0,0.32);
+  transition: background 0.5s, box-shadow 0.5s, border-color 0.5s;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+.btn::before {
+  content: ''; position: absolute; inset: 12px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.07);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.28), inset 0 -1px 2px rgba(0,0,0,0.15), 0 1px 0 rgba(255,255,255,0.04);
+  pointer-events: none; z-index: 0;
+}
+.btn:active { transform: scale(0.91) !important; transition: transform 0.1s ease; }
+.btn.rec {
+  background:
+    radial-gradient(circle at 40% 28%, rgba(200,140,255,0.08) 0%, transparent 56%),
+    var(--plum-mid);
+  border-color: rgba(200,140,255,0.14);
+  box-shadow:
+    0 14px 56px rgba(168,80,220,0.48), 0 3px 12px rgba(30,16,40,0.28),
+    inset 0 2px 3px rgba(255,255,255,0.06), inset 0 -4px 8px rgba(0,0,0,0.28);
+  animation: none;
+}
+@keyframes btn-breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(0.965); } }
+
+.icon { position: absolute; z-index: 1; transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.34,1.56,0.64,1); pointer-events: none; }
+.icon-stop { opacity: 0; transform: scale(0.6) rotate(-15deg); }
+.btn.rec .icon-mic  { opacity: 0; transform: scale(0.6) rotate(15deg); }
+.btn.rec .icon-stop { opacity: 1; transform: scale(1) rotate(0); }
+
+.btn-hint {
+  font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--plum); opacity: 0.4; user-select: none;
+  transition: opacity 0.3s;
+}
+.btn-hint.gone { opacity: 0; }
+
+/* ── Bottom sheet ─────────────────────────────────── */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(30,16,40,0.22);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.3s ease; z-index: 10;
+}
+.overlay.on { opacity: 1; pointer-events: all; }
+
+.sheet {
+  position: fixed; bottom: 0;
+  left: 50%; transform: translateX(-50%) translateY(110%);
+  width: 100%; max-width: 430px;
+  background: var(--sheet-bg);
+  backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+  border-radius: 28px 28px 0 0;
+  padding: 10px 24px max(env(safe-area-inset-bottom, 0px), 32px);
+  z-index: 11;
+  box-shadow: 0 -6px 48px rgba(30,16,40,0.14);
+  transition: transform 0.42s cubic-bezier(0.34, 1.08, 0.64, 1);
+}
+.sheet.up { transform: translateX(-50%) translateY(0); }
+
+.sheet-handle {
+  width: 36px; height: 4px; border-radius: 2px;
+  background: rgba(30,16,40,0.1); margin: 0 auto 22px;
+}
+
+/* ── Sheet header (Wellness style) */
+.sheet-head { margin-bottom: 20px; }
+.sheet-title {
+  font-family: 'Fixel Display', sans-serif;
+  font-weight: 700;
+  font-size: 1.35rem;
+  line-height: 1.2;
+  margin-bottom: 4px;
+  transition: all 0.3s ease;
+}
+.sheet-sub {
+  font-family: 'Fixel Text', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 300;
+  opacity: 0.45;
+  letter-spacing: 0.01em;
+  transition: all 0.3s ease;
+}
+
+/* ── Sheet rows (Wellness "Make it yours" style) */
+.sheet-rows { margin-bottom: 22px; }
+
+.sheet-row {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 13px 0;
+  border-bottom: 1px solid rgba(30,16,40,0.06);
+}
+.sheet-row:last-child { border-bottom: none; }
+
+.row-icon {
+  width: 38px; height: 38px;
+  border-radius: 11px;
+  background: rgba(30,16,40,0.06);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.3s ease;
+}
+.row-icon.done { background: rgba(100,185,120,0.14); }
+
+.row-label {
+  font-size: 0.88rem;
+  font-weight: 400;
+  flex-shrink: 0;
+  min-width: 80px;
+}
+
+.row-ctrl {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  justify-content: flex-end;
+  font-size: 0.8rem;
+  opacity: 0.5;
+  overflow: hidden;
+}
+
+.play-mini {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--plum); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  opacity: 0.85;
+}
+.mini-bars {
+  flex: 1; display: flex; align-items: center; gap: 2px;
+  height: 22px; overflow: hidden; max-width: 80px;
+}
+.mini-bar {
+  flex: 1; border-radius: 2px; background: var(--plum); opacity: 0.22; min-height: 3px;
+}
+.sheet-dur {
+  font-size: 0.78rem; opacity: 0.5;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+.spinner {
+  width: 14px; height: 14px; flex-shrink: 0;
+  border: 2px solid rgba(30,16,40,0.1); border-top-color: rgba(30,16,40,0.5);
+  border-radius: 50%; animation: spin 0.75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Sheet buttons */
+.sheet-btns { display: flex; gap: 10px; margin-bottom: 10px; }
+.btn-sec {
+  flex: 1; padding: 15px 10px; border-radius: 16px;
+  border: 1.5px solid rgba(30,16,40,0.12); background: none;
+  font-family: 'Fixel Text', sans-serif; font-size: 0.88rem;
+  color: var(--plum); opacity: 0.6; cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-sec:active { opacity: 0.9; }
+.btn-pri {
+  flex: 2; padding: 15px 10px; border-radius: 16px;
+  border: none; background: var(--plum);
+  font-family: 'Fixel Text', sans-serif; font-size: 0.88rem; font-weight: 400;
+  color: var(--cream); cursor: pointer;
+  opacity: 0.3; transition: opacity 0.4s ease;
+}
+.btn-pri.on { opacity: 1; }
+.btn-del {
+  width: 100%; padding: 6px; border: none; background: none;
+  font-family: 'Fixel Text', sans-serif; font-size: 0.75rem;
+  letter-spacing: 0.04em; color: var(--plum); opacity: 0.28; cursor: pointer;
+}
+
+/* ── Detail screen ────────────────────────────────── */
+#detail .hdr { justify-content: flex-start; gap: 0; }
+#detail .hdr-back { flex: 0 0 auto; }
+
+.detail-body {
+  flex: 1; overflow-y: auto; padding-bottom: 48px;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.detail-body::-webkit-scrollbar { display: none; }
+
+.det-eyebrow {
+  font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase;
+  opacity: 0.45; margin-bottom: 7px;
+}
+.det-title {
+  font-family: 'Fixel Display', sans-serif;
+  font-size: clamp(1.6rem, 7vw, 2.2rem);
+  font-weight: 800; line-height: 1.15;
+  text-wrap: balance; margin-bottom: 16px;
+  letter-spacing: -0.01em;
+}
+.det-pills { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; }
+.pill {
+  font-size: 0.72rem; padding: 5px 12px; border-radius: 20px; letter-spacing: 0.02em;
+}
+.pill-bad  { background: rgba(170,90,50,0.1);  color: rgba(140,70,30,1); }
+.pill-ok   { background: rgba(30,16,40,0.07);  color: var(--plum); }
+.pill-good { background: rgba(70,150,90,0.1);  color: rgba(50,115,65,1); }
+
+.divider { height: 1px; background: rgba(30,16,40,0.08); margin: 16px 0; }
+
+.det-text {
+  font-size: 0.92rem; line-height: 1.78; font-weight: 300;
+  opacity: 0.82; margin-bottom: 4px;
+}
+.det-label {
+  font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
+  opacity: 0.38; margin-top: 14px; margin-bottom: 3px;
+}
+.det-value { font-size: 0.88rem; opacity: 0.72; }
+.det-tags  { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+
+.det-audio {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(30,16,40,0.05);
+  border-radius: 12px; padding: 11px 14px; margin-top: 18px;
+}
+.det-date {
+  font-size: 0.75rem; opacity: 0.32; margin-top: 22px; text-align: center;
+}
+
+/* ── List screen ──────────────────────────────────── */
+.list-search {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,248,244,0.75);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.55);
+  border-radius: 14px; padding: 11px 14px; margin-bottom: 12px;
+}
+.list-search input {
+  flex: 1; background: none; border: none; outline: none;
+  font-family: 'Fixel Text', sans-serif; font-size: 0.88rem;
+  color: var(--plum); font-weight: 300;
+}
+.list-search input::placeholder { opacity: 0.38; }
+
+.filters {
+  display: flex; gap: 7px; overflow-x: auto;
+  margin-bottom: 14px; padding-bottom: 2px;
+  scrollbar-width: none;
+}
+.filters::-webkit-scrollbar { display: none; }
+.f-chip {
+  white-space: nowrap; font-size: 0.72rem; letter-spacing: 0.04em;
+  padding: 6px 14px; border-radius: 20px;
+  border: 1.5px solid rgba(30,16,40,0.16); background: none;
+  color: var(--plum); font-family: 'Fixel Text', sans-serif;
+  cursor: pointer; opacity: 0.6; transition: all 0.2s;
+}
+.f-chip.on { background: var(--plum); color: var(--cream); border-color: var(--plum); opacity: 1; }
+
+.month-row {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
+  opacity: 0.38; margin-bottom: 10px; margin-top: 4px;
+}
+.month-row::before, .month-row::after {
+  content: ''; flex: 1; height: 1px; background: rgba(30,16,40,0.1);
+}
+
+.list-scroll {
+  flex: 1; overflow-y: auto; padding-bottom: 40px;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.list-scroll::-webkit-scrollbar { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ring, .btn, .rec-bar { animation: none !important; }
+}
+</style>
+
+<!-- ═══════════════ SCREENS ═══════════════ -->
+
+<!-- S1: Home -->
+<div class="app">
+
+<div class="screen active" id="home">
+  <div class="hdr">
+    <span class="hdr-logo">Diary</span>
+  </div>
+  <div class="home-scroll" id="homeScroll">
+    <div id="homeEntries"></div>
+    <div class="show-all-row" id="showAll" hidden>Всі записи →</div>
+  </div>
+</div>
+
+<!-- Recording overlay (lives inside app, above screen, below button) -->
+<div class="rec-overlay" id="recOverlay">
+  <div class="rec-timer" id="recTimer">0:00</div>
+  <div class="rec-bars" id="recBars"></div>
+</div>
+
+<!-- S3: Detail -->
+<div class="screen" id="detail">
+  <div class="hdr">
+    <button class="hdr-back" onclick="goBack()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Назад
+    </button>
+  </div>
+  <div class="detail-body" id="detailBody"></div>
+</div>
+
+<!-- S4: List -->
+<div class="screen" id="list">
+  <div class="hdr">
+    <button class="hdr-back" onclick="goBack()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Назад
+    </button>
+    <span class="hdr-title-center">Записи</span>
+    <span style="width:52px"></span>
+  </div>
+  <div class="list-search">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="opacity:.4;flex-shrink:0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="Пошук…" id="searchInput" oninput="filterEntries()" autocomplete="off">
+  </div>
+  <div class="filters" id="filterRow"></div>
+  <div class="list-scroll" id="listEntries"></div>
+</div>
+
+<!-- Fixed record button -->
+<div class="btn-anchor" id="btnAnchor">
+  <div class="btn-wrap" id="btnWrap">
+    <div class="ring"></div>
+    <div class="ring"></div>
+    <button class="btn" id="recBtn" aria-label="Record" aria-pressed="false">
+      <svg class="icon icon-mic" width="54" height="54" viewBox="0 0 24 24"
+           fill="none" stroke="#FFF5EE" stroke-width="1.4"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="9" y="2" width="6" height="11" rx="3"/>
+        <path d="M5 10a7 7 0 0 0 14 0"/>
+        <line x1="12" y1="19" x2="12" y2="22"/>
+        <line x1="9" y1="22" x2="15" y2="22"/>
+      </svg>
+      <svg class="icon icon-stop" width="50" height="50" viewBox="0 0 24 24" fill="#FFF5EE" aria-hidden="true">
+        <rect x="6" y="6" width="12" height="12" rx="2.5"/>
+      </svg>
+    </button>
+  </div>
+  <span class="btn-hint" id="btnHint">Tap to record</span>
+</div>
+
+<!-- Bottom sheet -->
+<div class="overlay" id="overlay"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"></div>
+
+  <div class="sheet-head">
+    <div class="sheet-title" id="sheetTitle">Твій запис</div>
+    <div class="sheet-sub"   id="sheetSub">Зачекай кілька секунд…</div>
+  </div>
+
+  <div class="sheet-rows">
+    <!-- Audio row -->
+    <div class="sheet-row">
+      <div class="row-icon">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="opacity:.6">
+          <rect x="9" y="2" width="6" height="11" rx="3"/>
+          <path d="M5 10a7 7 0 0 0 14 0"/>
+          <line x1="12" y1="19" x2="12" y2="22"/>
+          <line x1="9"  y1="22" x2="15" y2="22"/>
+        </svg>
+      </div>
+      <span class="row-label">Аудіо</span>
+      <div class="row-ctrl">
+        <button class="play-mini" aria-label="Play">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="#FFF5EE"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </button>
+        <div class="mini-bars" id="miniBars"></div>
+        <span class="sheet-dur" id="sheetDur">0:00</span>
+      </div>
+    </div>
+
+    <!-- Processing row -->
+    <div class="sheet-row">
+      <div class="row-icon" id="statusIcon">
+        <div class="spinner"></div>
+      </div>
+      <span class="row-label">Обробка</span>
+      <div class="row-ctrl">
+        <span id="statusText">Транскрибується…</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="sheet-btns">
+    <button class="btn-sec" onclick="reRecord()">Переписати</button>
+    <button class="btn-pri" id="saveBtn" onclick="saveEntry()">Зберегти</button>
+  </div>
+  <button class="btn-del" onclick="discardEntry()">Видалити запис</button>
+</div>
+
+</div><!-- /app -->
+
+<script>
+/* ── Sample data ───────────────────────────────────── */
+const ENTRIES = [
+  {
+    id: 1,
+    title: "Розчарування через непродуктивний день",
+    mood: ["засмучення","розчарування","надія"],
+    duration: "2:14",
+    entryType: "Рефлексія",
+    timeOfDay: "Ранок",
+    emotionalState: "Поганий",
+    physicalState: "Нейтральний",
+    context: "Ремонт і налаштування дому",
+    project: "Система опалення та водопостачання",
+    tags: ["опалення","насос","вода","ремонт"],
+    text: "Вчора я був дуже засмучений, адже цілий день, який міг витратити на роботу, провів на налаштуванні опалення та насоса. Ми вирішили, що потрібно переробити схему подачі води в будинку. Вона не є критичною, але все ж важливою. Я не зміг зробити нічого істотного з того, що планував, і це дуже неприємно, бо роботи ще багато, а прогрес, по суті, на нулі. Знайшли стерні, включили опалення — зараз буду дивитися, що там за ніч нагрілося. Спочатку трішки засмутився, але потім вирішив, що це був своєрідний вихідний.",
+    date: "19 жовтня 2026, 8:18",
+    month: "Жовтень 2026"
+  },
+  {
+    id: 2,
+    title: "Ранкові думки про новий проект",
+    mood: ["натхнення","тривога"],
+    duration: "1:45",
+    entryType: "Ідея",
+    timeOfDay: "Ранок",
+    emotionalState: "Хороший",
+    physicalState: "Хороший",
+    context: "Ранкова кава, плануємо тиждень",
+    project: "Diary App",
+    tags: ["планування","мобільний додаток","ідеї"],
+    text: "Сьогодні вранці за кавою прийшла ідея щодо нового проекту. Хочу зробити мобільний додаток для щоденника, де можна записувати голосові нотатки. Це буде просто і зручно — одна велика кнопка, і все. Трошки тривожить обсяг роботи, але загалом настрій бойовий.",
+    date: "20 жовтня 2026, 7:45",
+    month: "Жовтень 2026"
+  },
+  {
+    id: 3,
+    title: "Прогулянка і свіжий осінній ранок",
+    mood: ["спокій","радість"],
+    duration: "0:58",
+    entryType: "Щоденник",
+    timeOfDay: "Ранок",
+    emotionalState: "Хороший",
+    physicalState: "Хороший",
+    context: "Прогулянка в парку",
+    project: null,
+    tags: ["природа","осінь","прогулянка"],
+    text: "Чудова прогулянка. Осінь дуже гарна цього року. Листя жовте і червоне, повітря свіже. Просто йшов і думав ні про що. Дуже добре.",
+    date: "18 жовтня 2026, 8:02",
+    month: "Жовтень 2026"
+  },
+  {
+    id: 4,
+    title: "Вечірня рефлексія після зустрічі",
+    mood: ["втома","вдячність"],
+    duration: "3:02",
+    entryType: "Рефлексія",
+    timeOfDay: "Вечір",
+    emotionalState: "Нейтральний",
+    physicalState: "Поганий",
+    context: "Повернувся зі зустрічі з партнерами",
+    project: null,
+    tags: ["зустріч","партнери","рефлексія"],
+    text: "Довга зустріч. Багато обговорювали, прийшли до кількох важливих рішень. Втомився але задоволений — здається рухаємось у правильному напрямку. Треба виспатись.",
+    date: "17 жовтня 2026, 21:30",
+    month: "Жовтень 2026"
+  }
+];
+
+/* ── State ─────────────────────────────────────────── */
+let currentScreen = 'home';
+let prevScreen    = null;
+let isRecording   = false;
+let elapsed       = 0;
+let timerInterval = null;
+let pendingEntry  = null;
+let hintHidden    = false;
+
+/* ── DOM refs ──────────────────────────────────────── */
+const btnAnchor  = document.getElementById('btnAnchor');
+const btnWrap    = document.getElementById('btnWrap');
+const recBtn     = document.getElementById('recBtn');
+const btnHint    = document.getElementById('btnHint');
+const recOverlay = document.getElementById('recOverlay');
+const recTimer   = document.getElementById('recTimer');
+const recBars    = document.getElementById('recBars');
+const overlay    = document.getElementById('overlay');
+const sheet      = document.getElementById('sheet');
+const saveBtn    = document.getElementById('saveBtn');
+const sheetDur   = document.getElementById('sheetDur');
+
+/* ── Navigation ────────────────────────────────────── */
+function showScreen(id, from) {
+  const prev = document.getElementById(prevScreen || currentScreen);
+  const next = document.getElementById(id);
+  if (prev && prev !== next) {
+    prev.classList.remove('active');
+    prev.classList.add('out');
+    setTimeout(() => prev.classList.remove('out'), 350);
+  }
+  next.classList.remove('out');
+  next.classList.add('active');
+  prevScreen    = currentScreen;
+  currentScreen = id;
+
+  btnAnchor.classList.toggle('visible', id === 'home');
+}
+
+function goBack() {
+  const back = prevScreen || 'home';
+  const curr = document.getElementById(currentScreen);
+  const prev = document.getElementById(back);
+  curr.classList.remove('active');
+  curr.classList.add('out');
+  setTimeout(() => curr.classList.remove('out'), 350);
+  prev.style.transform = 'translateX(0)';
+  prev.classList.remove('out');
+  prev.classList.add('active');
+  currentScreen = back;
+  prevScreen = 'home';
+  btnAnchor.classList.toggle('visible', currentScreen === 'home');
+}
+
+/* ── Entry cards renderer ──────────────────────────── */
+function cardHTML(e) {
+  const moods = e.mood.map(m => `<span class="mood-chip">${m}</span>`).join('');
+  return `
+    <div class="entry-card" onclick="openDetail(${e.id})">
+      <div class="card-title">${e.title}</div>
+      <div class="card-moods">${moods}</div>
+      <div class="card-meta">${e.duration} &nbsp;·&nbsp; ${e.entryType} &nbsp;·&nbsp; ${e.timeOfDay}</div>
+    </div>`;
+}
+
+function renderHome() {
+  const container = document.getElementById('homeEntries');
+  const showAll   = document.getElementById('showAll');
+  const list = ENTRIES.slice(0, 3);
+  container.innerHTML = list.map(cardHTML).join('');
+  showAll.hidden = ENTRIES.length <= 3;
+}
+
+function renderList(entries) {
+  const container = document.getElementById('listEntries');
+  if (!entries.length) {
+    container.innerHTML = '<div style="text-align:center;opacity:.35;padding:40px 0;font-size:.85rem;letter-spacing:.04em">Нічого не знайдено</div>';
+    return;
+  }
+  let html = '';
+  let lastMonth = '';
+  entries.forEach(e => {
+    if (e.month !== lastMonth) {
+      html += `<div class="month-row">${e.month}</div>`;
+      lastMonth = e.month;
+    }
+    html += cardHTML(e);
+  });
+  container.innerHTML = html;
+}
+
+/* ── Detail ────────────────────────────────────────── */
+function openDetail(id) {
+  const e = ENTRIES.find(x => x.id === id);
+  if (!e) return;
+  const pillClass = e.emotionalState === 'Поганий' ? 'pill-bad'
+                  : e.emotionalState === 'Хороший' ? 'pill-good' : 'pill-ok';
+  const physClass = e.physicalState  === 'Поганий' ? 'pill-bad'
+                  : e.physicalState  === 'Хороший' ? 'pill-good' : 'pill-ok';
+  const tags  = e.tags.map(t => `<span class="mood-chip">${t}</span>`).join('');
+  const moods = e.mood.map(m => `<span class="mood-chip">${m}</span>`).join('');
+  const miniW = Array.from({length: 28}, (_,i) =>
+    `<div class="mini-bar" style="height:${6+Math.round(Math.sin(i*0.7)*10+Math.random()*12)}px"></div>`).join('');
+
+  document.getElementById('detailBody').innerHTML = `
+    <div class="det-eyebrow">${e.entryType} &nbsp;·&nbsp; ${e.timeOfDay}</div>
+    <div class="det-title">${e.title}</div>
+    <div class="det-pills">
+      <span class="pill ${pillClass}">😔 ${e.emotionalState}</span>
+      <span class="pill ${physClass}">🏃 ${e.physicalState}</span>
+    </div>
+    <div class="card-moods" style="margin-bottom:0">${moods}</div>
+    <div class="divider"></div>
+    <div class="det-text">${e.text}</div>
+    <div class="det-label">Контекст</div>
+    <div class="det-value">${e.context}</div>
+    ${e.project ? `<div class="det-label">Проект</div><div class="det-value">${e.project}</div>` : ''}
+    <div class="det-label">Теги</div>
+    <div class="det-tags">${tags}</div>
+    <div class="det-audio">
+      <button class="play-mini" style="width:32px;height:32px" aria-label="Play">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="#FFF5EE"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </button>
+      <div class="mini-bars" style="height:24px">${miniW}</div>
+      <span class="sheet-dur">${e.duration}</span>
+    </div>
+    <div class="det-date">${e.date}</div>`;
+
+  showScreen('detail');
+}
+
+/* ── List screen ───────────────────────────────────── */
+const TYPES = ['Всі','Рефлексія','Ідея','Щоденник','Подія'];
+let activeFilter = 'Всі';
+
+function renderFilters() {
+  document.getElementById('filterRow').innerHTML =
+    TYPES.map(t => `<button class="f-chip${t===activeFilter?' on':''}" onclick="setFilter('${t}')">${t}</button>`).join('');
+}
+
+function setFilter(type) {
+  activeFilter = type;
+  renderFilters();
+  filterEntries();
+}
+
+function filterEntries() {
+  const q = (document.getElementById('searchInput').value || '').toLowerCase();
+  let list = ENTRIES;
+  if (activeFilter !== 'Всі') list = list.filter(e => e.entryType === activeFilter);
+  if (q) list = list.filter(e => e.title.toLowerCase().includes(q) || e.text.toLowerCase().includes(q));
+  renderList(list);
+}
+
+/* ── Recording ─────────────────────────────────────── */
+function buildBars() {
+  recBars.innerHTML = Array.from({length:26}, (_,i) => {
+    const h = 8 + Math.round(Math.abs(Math.sin(i*0.4+1))*32);
+    const delay = (i * 0.04).toFixed(2);
+    return `<div class="rec-bar" style="--h:${h}px;animation-delay:${delay}s;animation-duration:${(0.7+Math.random()*0.5).toFixed(2)}s"></div>`;
+  }).join('');
+}
+
+function buildMiniWave() {
+  const dur = sheetDur.parentElement ? sheetDur : document.getElementById('sheetDur');
+  document.getElementById('miniBars').innerHTML =
+    Array.from({length:30}, (_,i) =>
+      `<div class="mini-bar" style="height:${4+Math.round(Math.abs(Math.sin(i*0.5))*18+Math.random()*8)}px"></div>`
+    ).join('');
+}
+
+function fmt(s) {
+  return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+}
+
+recBtn.addEventListener('click', () => {
+  if (!isRecording) {
+    startRecording();
+  } else {
+    stopRecording();
+  }
+});
+
+function startRecording() {
+  isRecording = true;
+  elapsed = 0;
+  buildBars();
+  recBtn.classList.add('rec');
+  recBtn.setAttribute('aria-pressed','true');
+  btnWrap.classList.add('rec');
+  btnHint.classList.add('gone');
+  hintHidden = true;
+  document.getElementById('homeScroll').style.opacity = '0';
+  document.getElementById('homeScroll').style.pointerEvents = 'none';
+  recOverlay.classList.add('visible');
+  recTimer.textContent = fmt(0);
+  timerInterval = setInterval(() => {
+    elapsed++;
+    recTimer.textContent = fmt(elapsed);
+  }, 1000);
+}
+
+function stopRecording() {
+  isRecording = false;
+  clearInterval(timerInterval);
+  recBtn.classList.remove('rec');
+  recBtn.setAttribute('aria-pressed','false');
+  btnWrap.classList.remove('rec');
+  sheetDur.textContent = fmt(elapsed);
+  buildMiniWave();
+  showSheet();
+}
+
+function showSheet() {
+  overlay.classList.add('on');
+  sheet.classList.add('up');
+  saveBtn.classList.remove('on');
+  document.getElementById('sheetTitle').textContent = 'Твій запис';
+  document.getElementById('sheetSub').textContent   = 'Зачекай кілька секунд…';
+  document.getElementById('statusIcon').innerHTML   = '<div class="spinner"></div>';
+  document.getElementById('statusIcon').classList.remove('done');
+  document.getElementById('statusText').textContent = 'Транскрибується…';
+  setTimeout(markReady, 2200);
+}
+
+function markReady() {
+  document.getElementById('sheetTitle').textContent = 'Готово до збереження';
+  document.getElementById('sheetSub').textContent   = 'Збережи або переслухай';
+  document.getElementById('statusIcon').innerHTML   =
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4CAF72" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  document.getElementById('statusIcon').classList.add('done');
+  document.getElementById('statusText').textContent = 'Транскрибовано ✓';
+  saveBtn.classList.add('on');
+}
+
+function hideSheet() {
+  overlay.classList.remove('on');
+  sheet.classList.remove('up');
+  recOverlay.classList.remove('visible');
+  document.getElementById('homeScroll').style.opacity = '';
+  document.getElementById('homeScroll').style.pointerEvents = '';
+  btnHint.classList.toggle('gone', hintHidden);
+}
+
+function saveEntry() {
+  if (!saveBtn.classList.contains('on')) return;
+  const newEntry = {
+    id: Date.now(),
+    title: "Новий запис " + new Date().toLocaleTimeString('uk',{hour:'2-digit',minute:'2-digit'}),
+    mood: ["обробляється"],
+    duration: fmt(elapsed),
+    entryType: "Щоденник",
+    timeOfDay: "День",
+    emotionalState: "Нейтральний",
+    physicalState: "Нейтральний",
+    context: "",
+    project: null,
+    tags: [],
+    text: "Запис збережено. Транскрипція буде доступна за мить.",
+    date: new Date().toLocaleString('uk',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}),
+    month: "Жовтень 2026"
+  };
+  ENTRIES.unshift(newEntry);
+  hideSheet();
+  renderHome();
+  renderList(ENTRIES);
+}
+
+function reRecord() {
+  hideSheet();
+  startRecording();
+}
+
+function discardEntry() {
+  hideSheet();
+}
+
+/* ── Show All ──────────────────────────────────────── */
+document.getElementById('showAll').addEventListener('click', () => {
+  renderList(ENTRIES);
+  renderFilters();
+  showScreen('list');
+});
+
+/* ── Init ──────────────────────────────────────────── */
+renderHome();
+renderList(ENTRIES);
+renderFilters();
+btnAnchor.classList.add('visible');
+</script>
