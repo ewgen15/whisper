@@ -1,0 +1,7 @@
+backend/.env
+pwa/
+**/__pycache__/
+*.pyc
+.DS_Store
+design/
+test-samples/
