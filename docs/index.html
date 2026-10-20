@@ -717,14 +717,37 @@ body {
 /* ── Storage ───────────────────────────────────────── */
 let ENTRIES = [];
 
-function loadEntries() {
+async function loadEntries() {
+  try {
+    const res = await fetch(`${getBackendUrl()}/entries`);
+    if (res.ok) {
+      const data = await res.json();
+      ENTRIES = data.map(normalizeEntry);
+      return;
+    }
+  } catch {}
+  // fallback to localStorage
   try { ENTRIES = JSON.parse(localStorage.getItem('diary_entries') || '[]'); }
   catch { ENTRIES = []; }
 }
 
-function persistEntries() {
-  try { localStorage.setItem('diary_entries', JSON.stringify(ENTRIES)); }
-  catch {}
+function normalizeEntry(e) {
+  return {
+    id:             e.id,
+    title:          e.title         || 'Запис',
+    mood:           e.mood          || [],
+    duration:       e.duration      || '—',
+    entryType:      e.entry_type    || 'Щоденник',
+    timeOfDay:      e.time_of_day   || '',
+    emotionalState: e.emotional_state || 'Нейтральний',
+    physicalState:  e.physical_state  || 'Нейтральний',
+    context:        e.context       || '',
+    project:        e.project       || null,
+    tags:           e.tags          || [],
+    text:           e.text          || '',
+    date:           e.date_label    || new Date(e.created_at).toLocaleString('uk', {day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}),
+    month:          e.month_label   || '',
+  };
 }
 
 function getBackendUrl() {
@@ -1020,28 +1043,39 @@ function hideSheet() {
   btnHint.classList.toggle('gone', hintHidden);
 }
 
-function saveEntry() {
+async function saveEntry() {
   if (!saveBtn.classList.contains('on') || !enrichedData) return;
+  saveBtn.textContent = 'Зберігаємо…';
+  saveBtn.classList.remove('on');
+
   const now = new Date();
-  const entry = {
-    id: Date.now(),
-    title:         enrichedData.title          || 'Запис',
-    mood:          enrichedData.mood           || [],
-    duration:      fmt(elapsed),
-    entryType:     enrichedData.entry_type     || 'Щоденник',
-    timeOfDay:     enrichedData.time_of_day    || 'День',
-    emotionalState:enrichedData.emotional_state|| 'Нейтральний',
-    physicalState: enrichedData.physical_state || 'Нейтральний',
-    context:       enrichedData.context        || '',
-    project:       enrichedData.project        || null,
-    tags:          enrichedData.tags           || [],
-    text:          enrichedData.text           || enrichedData.rawText || '',
-    date:  now.toLocaleString('uk',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}),
-    month: monthLabel(now)
+  const payload = {
+    ...enrichedData,
+    duration:    fmt(elapsed),
+    date_label:  now.toLocaleString('uk',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}),
+    month_label: monthLabel(now),
   };
-  ENTRIES.unshift(entry);
-  persistEntries();
+
+  try {
+    const res = await fetch(`${getBackendUrl()}/save`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ entry: payload }),
+    });
+    if (res.ok) {
+      const saved = await res.json();
+      ENTRIES.unshift(normalizeEntry(saved));
+    } else {
+      throw new Error();
+    }
+  } catch {
+    // fallback: save locally
+    ENTRIES.unshift(normalizeEntry({ ...payload, id: Date.now(), created_at: now.toISOString() }));
+    try { localStorage.setItem('diary_entries', JSON.stringify(ENTRIES)); } catch {}
+  }
+
   enrichedData = null;
+  saveBtn.textContent = 'Зберегти';
   hideSheet();
   renderHome();
   renderList(ENTRIES);
@@ -1056,9 +1090,8 @@ document.getElementById('showAll').addEventListener('click', () => {
 });
 
 /* ── Init ──────────────────────────────────────────── */
-loadEntries();
-renderHome();
-renderList(ENTRIES);
-renderFilters();
 btnAnchor.classList.add('visible');
+renderFilters();
+renderHome();
+loadEntries().then(() => { renderHome(); renderList(ENTRIES); });
 </script>
