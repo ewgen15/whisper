@@ -711,12 +711,18 @@ body {
     <div class="sheet-title">Налаштування</div>
     <div class="sheet-sub">Адреса бекенду для транскрипції</div>
   </div>
-  <div style="margin-bottom:16px">
+  <div style="margin-bottom:12px">
     <div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.4;margin-bottom:6px">Backend URL</div>
     <input id="backendInput" type="url" inputmode="url"
       style="width:100%;background:rgba(30,16,40,0.05);border:1.5px solid rgba(30,16,40,0.12);border-radius:12px;padding:12px 14px;font-family:'Fixel Text',sans-serif;font-size:0.88rem;color:#1E1028;outline:none"
       placeholder="https://homeserver.tail54ecf6.ts.net">
-    <div style="font-size:0.7rem;opacity:0.35;margin-top:6px">Tailscale URL або локальний IP в тій самій мережі.</div>
+  </div>
+  <div style="margin-bottom:16px">
+    <div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.4;margin-bottom:6px">API Key</div>
+    <input id="apiKeyInput" type="password"
+      style="width:100%;background:rgba(30,16,40,0.05);border:1.5px solid rgba(30,16,40,0.12);border-radius:12px;padding:12px 14px;font-family:'Fixel Text',sans-serif;font-size:0.88rem;color:#1E1028;outline:none"
+      placeholder="••••••••••••">
+    <div style="font-size:0.7rem;opacity:0.35;margin-top:6px">Секретний ключ — має збігатись з API_KEY на сервері.</div>
   </div>
 
   <div style="margin-bottom:20px">
@@ -782,7 +788,7 @@ async function loadEntries() {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 10000);
   try {
-    const res = await fetch(`${getBackendUrl()}/entries`, { signal: ctrl.signal });
+    const res = await fetch(`${getBackendUrl()}/entries`, { signal: ctrl.signal, headers: authHeaders() });
     clearTimeout(timer);
     if (res.ok) {
       let data;
@@ -838,6 +844,13 @@ function normalizeEntry(e) {
 
 function getBackendUrl() {
   return (localStorage.getItem('diary_backend') || 'https://homeserver.tail54ecf6.ts.net').replace(/\/$/, '');
+}
+function getApiKey() {
+  try { return localStorage.getItem('diary_api_key') || ''; } catch { return ''; }
+}
+function authHeaders(extra) {
+  const k = getApiKey();
+  return k ? { 'X-API-Key': k, ...extra } : { ...extra };
 }
 
 /* ── State ─────────────────────────────────────────── */
@@ -916,7 +929,7 @@ async function runDiagnostics() {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 9000);
     try {
-      const res = await fetch(c.url, { signal: ctrl.signal });
+      const res = await fetch(c.url, { signal: ctrl.signal, headers: authHeaders() });
       clearTimeout(t);
       if (res.ok) {
         const data = await res.json();
@@ -955,6 +968,7 @@ function _diagSetRender() {
 
 function openSettings() {
   document.getElementById('backendInput').value = getBackendUrl();
+  document.getElementById('apiKeyInput').value = getApiKey();
   const urlLine = document.getElementById('diagUrlLine');
   if (urlLine) urlLine.textContent = `→ ${getBackendUrl()}`;
   _diagSetRender();
@@ -967,7 +981,12 @@ function closeSettings() {
 }
 function saveSettings() {
   const url = document.getElementById('backendInput').value.trim();
+  const key = document.getElementById('apiKeyInput').value.trim();
   if (url) try { localStorage.setItem('diary_backend', url); } catch {}
+  try {
+    if (key) localStorage.setItem('diary_api_key', key);
+    else localStorage.removeItem('diary_api_key');
+  } catch {}
   closeSettings();
 }
 
@@ -1153,14 +1172,14 @@ async function transcribeAndEnrich(blob) {
     setStatus('<div class="spinner"></div>', 'Транскрибується…');
     const fd = new FormData();
     fd.append('file', blob, 'recording.webm');
-    const tr = await fetch(`${url}/transcribe`, { method:'POST', body: fd });
+    const tr = await fetch(`${url}/transcribe`, { method:'POST', body: fd, headers: authHeaders() });
     if (!tr.ok) throw new Error(`Transcribe: ${tr.status}`);
     const { text } = await tr.json();
 
     setStatus('<div class="spinner"></div>', 'Аналізується…');
     const en = await fetch(`${url}/enrich`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ text })
     });
     if (!en.ok) throw new Error(`Enrich: ${en.status}`);
@@ -1205,7 +1224,7 @@ async function saveEntry() {
   try {
     const res = await fetch(`${getBackendUrl()}/save`, {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      headers: authHeaders({'Content-Type':'application/json'}),
       body: JSON.stringify({ entry: payload }),
     });
     if (res.ok) {

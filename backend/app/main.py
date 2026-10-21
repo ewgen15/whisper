@@ -1,6 +1,9 @@
 import mimetypes
-from fastapi import FastAPI, File, HTTPException, UploadFile
+import os
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 
 from .enrichment import enrich
@@ -40,6 +43,18 @@ class _PNAMiddleware:
         await self.app(scope, receive, send_with_pna)
 
 app.add_middleware(_PNAMiddleware)
+
+
+class _ApiKeyMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        expected = os.environ.get("API_KEY", "")
+        # No key configured = open (dev mode). Skip OPTIONS + /health.
+        if expected and request.method != "OPTIONS" and request.url.path != "/health":
+            if request.headers.get("x-api-key") != expected:
+                return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+        return await call_next(request)
+
+app.add_middleware(_ApiKeyMiddleware)
 
 ALLOWED_AUDIO_TYPES = {
     "audio/webm", "audio/mp4", "audio/mpeg",
