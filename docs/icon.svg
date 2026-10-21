@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- White rounded square background -->
+  <rect width="512" height="512" rx="116" fill="#FFFFFF"/>
+  <!-- Waveform bars — #7B6FA8, centered, symmetric -->
+  <g fill="#7B6FA8">
+    <rect x="68"  y="213" width="22" height="86"  rx="11"/>
+    <rect x="102" y="183" width="22" height="146" rx="11"/>
+    <rect x="136" y="153" width="22" height="206" rx="11"/>
+    <rect x="170" y="128" width="22" height="256" rx="11"/>
+    <rect x="204" y="102" width="22" height="308" rx="11"/>
+    <rect x="238" y="86"  width="22" height="340" rx="11"/>
+    <rect x="272" y="102" width="22" height="308" rx="11"/>
+    <rect x="306" y="128" width="22" height="256" rx="11"/>
+    <rect x="340" y="153" width="22" height="206" rx="11"/>
+    <rect x="374" y="183" width="22" height="146" rx="11"/>
+    <rect x="408" y="213" width="22" height="86"  rx="11"/>
+  </g>
+</svg>
