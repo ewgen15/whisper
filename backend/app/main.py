@@ -1,8 +1,6 @@
 import mimetypes
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
 from pydantic import BaseModel
 
 from .enrichment import enrich
@@ -11,7 +9,6 @@ from .storage import save_entry, get_entries
 
 app = FastAPI(title="Diary Backend", version="0.1.0")
 
-# CORSMiddleware is inner — handles origin/methods/headers
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -19,15 +16,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Private Network Access — outer wrapper so it sees OPTIONS preflight responses
-# Chrome blocks public→private-IP requests unless this header is present
-class PrivateNetworkAccessMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        response = await call_next(request)
-        response.headers["Access-Control-Allow-Private-Network"] = "true"
-        return response
+# Pure ASGI middleware — intercepts http.response.start at the wire level,
+# so it sees OPTIONS preflight responses that CORSMiddleware emits directly
+# (BaseHTTPMiddleware misses those).
+# Chrome requires Access-Control-Allow-Private-Network: true to allow
+# requests from public origins (github.io) to private IPs (Tailscale 100.x).
+class _PNAMiddleware:
+    def __init__(self, app):
+        self.app = app
 
-app.add_middleware(PrivateNetworkAccessMiddleware)
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_pna(message):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.append((b"access-control-allow-private-network", b"true"))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, send_with_pna)
+
+app.add_middleware(_PNAMiddleware)
 
 ALLOWED_AUDIO_TYPES = {
     "audio/webm", "audio/mp4", "audio/mpeg",
