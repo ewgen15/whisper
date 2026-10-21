@@ -1,6 +1,8 @@
 import mimetypes
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 from pydantic import BaseModel
 
 from .enrichment import enrich
@@ -9,12 +11,23 @@ from .storage import save_entry, get_entries
 
 app = FastAPI(title="Diary Backend", version="0.1.0")
 
+# CORSMiddleware is inner — handles origin/methods/headers
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Private Network Access — outer wrapper so it sees OPTIONS preflight responses
+# Chrome blocks public→private-IP requests unless this header is present
+class PrivateNetworkAccessMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["Access-Control-Allow-Private-Network"] = "true"
+        return response
+
+app.add_middleware(PrivateNetworkAccessMiddleware)
 
 ALLOWED_AUDIO_TYPES = {
     "audio/webm", "audio/mp4", "audio/mpeg",
