@@ -719,7 +719,7 @@ let ENTRIES = [];
 
 async function loadEntries() {
   try {
-    const res = await fetch(`${getBackendUrl()}/entries`, { signal: AbortSignal.timeout(8000) });
+    const res = await fetch(`${getBackendUrl()}/entries`);
     if (res.ok) {
       const data = await res.json();
       ENTRIES = data.map(normalizeEntry);
