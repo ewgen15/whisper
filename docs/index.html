@@ -83,6 +83,10 @@ body {
   padding-top: max(env(safe-area-inset-top, 0px), 52px);
   padding-bottom: 18px;
   flex-shrink: 0;
+  transition: padding-top 0.2s ease;
+}
+body.has-banner .hdr {
+  padding-top: calc(max(env(safe-area-inset-top, 0px), 44px) + 36px);
 }
 .hdr-logo {
   font-family: 'Fixel Text', sans-serif;
@@ -817,10 +821,11 @@ function setBackendBanner(show) {
     el = document.createElement('div');
     el.id = 'backendBanner';
     el.style.cssText = 'display:none;position:fixed;top:env(safe-area-inset-top,0);left:0;right:0;z-index:999;background:#5a2040;color:#ffd6e8;font-size:.75rem;text-align:center;padding:6px 12px;letter-spacing:.03em';
-    el.textContent = 'Бекенд недоступний — перевір Tailscale';
+    el.textContent = 'Бекенд недоступний — відкрий налаштування ⚙';
     document.body.appendChild(el);
   }
   el.style.display = show ? 'block' : 'none';
+  document.body.classList.toggle('has-banner', show);
 }
 
 function normalizeEntry(e) {
