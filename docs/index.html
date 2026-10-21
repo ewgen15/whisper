@@ -24,29 +24,24 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { height: 100%; }
-body { min-height: 100%; overflow: hidden; }
-
-body {
-  font-family: 'Fixel Text', system-ui, sans-serif;
-  font-weight: 300;
-  color: var(--plum);
-  display: flex;
-  justify-content: center;
-}
-
-/* Fixed-to-viewport background — never repaints on mobile toolbar show/hide */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
+html {
+  height: 100%;
   background:
     radial-gradient(ellipse at 18% 12%, #FFCBA4 0%, transparent 52%),
     radial-gradient(ellipse at 82% 88%, #B868D8 0%, transparent 52%),
     radial-gradient(ellipse at 68% 32%, #E8819A 0%, transparent 50%),
     radial-gradient(ellipse at 28% 72%, #F5A8C8 0%, transparent 46%),
     #E080B0;
+}
+
+body {
+  min-height: 100%;
+  overflow: hidden;
+  font-family: 'Fixel Text', system-ui, sans-serif;
+  font-weight: 300;
+  color: var(--plum);
+  display: flex;
+  justify-content: center;
 }
 
 .app {
