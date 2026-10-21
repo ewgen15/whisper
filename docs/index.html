@@ -716,13 +716,14 @@ body {
   </div>
 
   <div style="margin-bottom:20px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
       <div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.4">Діагностика</div>
       <button onclick="runDiagnostics()" id="diagBtn"
         style="background:rgba(30,16,40,0.06);border:none;border-radius:8px;padding:5px 12px;font-size:0.72rem;font-family:'Fixel Text',sans-serif;cursor:pointer;opacity:0.7">
         Перевірити
       </button>
     </div>
+    <div id="diagUrlLine" style="font-size:0.68rem;opacity:0.35;margin-bottom:10px;word-break:break-all"></div>
     <div class="sheet-rows" id="diagRows">
       <div class="sheet-row">
         <div class="row-icon" id="di-health-icon">
@@ -888,6 +889,8 @@ function goBack() {
 /* ── Settings ──────────────────────────────────────── */
 async function runDiagnostics() {
   const base = getBackendUrl();
+  const urlLine = document.getElementById('diagUrlLine');
+  if (urlLine) urlLine.textContent = `→ ${base}`;
   const checks = [
     { key: 'health',   url: `${base}/health`,  label: d => d.status === 'ok' ? 'OK' : d.status },
     { key: 'entries',  url: `${base}/entries`, label: d => `${d.length} записів` },
@@ -943,6 +946,8 @@ function _diagSetRender() {
 
 function openSettings() {
   document.getElementById('backendInput').value = getBackendUrl();
+  const urlLine = document.getElementById('diagUrlLine');
+  if (urlLine) urlLine.textContent = `→ ${getBackendUrl()}`;
   _diagSetRender();
   document.getElementById('settingsOverlay').classList.add('on');
   document.getElementById('settingsSheet').classList.add('up');
