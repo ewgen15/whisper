@@ -429,6 +429,15 @@ body {
   font-size: 0.78rem; opacity: 0.5;
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
+.diag-badge {
+  font-size: 0.7rem; font-weight: 500; letter-spacing: 0.02em;
+  padding: 3px 8px; border-radius: 20px; white-space: nowrap;
+  background: rgba(30,16,40,0.06); color: rgba(30,16,40,0.35);
+}
+.diag-badge.ok  { background: rgba(60,160,90,0.14); color: #2D7A48; }
+.diag-badge.err { background: rgba(200,60,60,0.12); color: #A33030; }
+.row-icon.ok  { background: rgba(60,160,90,0.12); }
+.row-icon.err { background: rgba(200,60,60,0.1); }
 
 .spinner {
   width: 14px; height: 14px; flex-shrink: 0;
@@ -702,12 +711,55 @@ body {
     <div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.4;margin-bottom:6px">Backend URL</div>
     <input id="backendInput" type="url" inputmode="url"
       style="width:100%;background:rgba(30,16,40,0.05);border:1.5px solid rgba(30,16,40,0.12);border-radius:12px;padding:12px 14px;font-family:'Fixel Text',sans-serif;font-size:0.88rem;color:#1E1028;outline:none"
-      placeholder="http://192.168.0.101:8000">
-    <div style="font-size:0.7rem;opacity:0.35;margin-top:6px">Введи IP міні PC. Обидва пристрої мають бути в одному WiFi.</div>
+      placeholder="https://homeserver.tail54ecf6.ts.net">
+    <div style="font-size:0.7rem;opacity:0.35;margin-top:6px">Tailscale URL або локальний IP в тій самій мережі.</div>
   </div>
+
+  <div style="margin-bottom:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.4">Діагностика</div>
+      <button onclick="runDiagnostics()" id="diagBtn"
+        style="background:rgba(30,16,40,0.06);border:none;border-radius:8px;padding:5px 12px;font-size:0.72rem;font-family:'Fixel Text',sans-serif;cursor:pointer;opacity:0.7">
+        Перевірити
+      </button>
+    </div>
+    <div class="sheet-rows" id="diagRows">
+      <div class="sheet-row">
+        <div class="row-icon" id="di-health-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(30,16,40,0.4)" stroke-width="2" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <div style="flex:1">
+          <div class="row-label">Health</div>
+          <div id="di-health" style="font-size:0.72rem;opacity:0.4;margin-top:1px">—</div>
+        </div>
+        <div id="di-health-badge" class="diag-badge"></div>
+      </div>
+      <div class="sheet-row">
+        <div class="row-icon" id="di-entries-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(30,16,40,0.4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </div>
+        <div style="flex:1">
+          <div class="row-label">Entries</div>
+          <div id="di-entries" style="font-size:0.72rem;opacity:0.4;margin-top:1px">—</div>
+        </div>
+        <div id="di-entries-badge" class="diag-badge"></div>
+      </div>
+      <div class="sheet-row">
+        <div class="row-icon" id="di-render-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(30,16,40,0.4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9l6 6M15 9l-6 6"/></svg>
+        </div>
+        <div style="flex:1">
+          <div class="row-label">Рендер</div>
+          <div id="di-render" style="font-size:0.72rem;opacity:0.4;margin-top:1px">—</div>
+        </div>
+        <div id="di-render-badge" class="diag-badge"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="sheet-btns">
-    <button class="btn-sec" onclick="closeSettings()">Скасувати</button>
-    <button class="btn-pri on" onclick="saveSettings()">Зберегти</button>
+    <button class="btn-sec" onclick="closeSettings()">Закрити</button>
+    <button class="btn-pri on" onclick="saveSettings()">Зберегти URL</button>
   </div>
 </div>
 
@@ -716,19 +768,29 @@ body {
 <script>
 /* ── Storage ───────────────────────────────────────── */
 let ENTRIES = [];
+let _lastLoadError = null;
+let _lastLoadCount = null;
 
 async function loadEntries() {
+  _lastLoadError = null;
+  _lastLoadCount = null;
   try {
     const res = await fetch(`${getBackendUrl()}/entries`);
     if (res.ok) {
-      const data = await res.json();
-      ENTRIES = data.map(normalizeEntry);
+      let data;
+      try { data = await res.json(); }
+      catch(e) { _lastLoadError = `JSON parse: ${e.message}`; throw e; }
+      try { ENTRIES = data.map(normalizeEntry); }
+      catch(e) { _lastLoadError = `normalizeEntry: ${e.message}`; throw e; }
+      _lastLoadCount = ENTRIES.length;
       setBackendBanner(false);
       return;
     }
-  } catch {}
+    _lastLoadError = `HTTP ${res.status}`;
+  } catch(e) {
+    if (!_lastLoadError) _lastLoadError = e.message || 'network error';
+  }
   setBackendBanner(true);
-  // fallback to localStorage
   try { ENTRIES = JSON.parse(localStorage.getItem('diary_entries') || '[]'); }
   catch { ENTRIES = []; }
 }
@@ -824,8 +886,64 @@ function goBack() {
 }
 
 /* ── Settings ──────────────────────────────────────── */
+async function runDiagnostics() {
+  const base = getBackendUrl();
+  const checks = [
+    { key: 'health',   url: `${base}/health`,  label: d => d.status === 'ok' ? 'OK' : d.status },
+    { key: 'entries',  url: `${base}/entries`, label: d => `${d.length} записів` },
+  ];
+
+  // reset
+  checks.forEach(c => {
+    _diagSet(c.key, '…', '', 'rgba(30,16,40,0.4)', '');
+  });
+  // render check — can we display entries at all?
+  _diagSetRender();
+
+  for (const c of checks) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 9000);
+    try {
+      const res = await fetch(c.url, { signal: ctrl.signal });
+      clearTimeout(t);
+      if (res.ok) {
+        const data = await res.json();
+        _diagSet(c.key, c.label(data), 'ok', '#2D7A48', '200');
+      } else {
+        _diagSet(c.key, `HTTP ${res.status}`, 'err', '#A33030', `${res.status}`);
+      }
+    } catch(e) {
+      clearTimeout(t);
+      const msg = e.name === 'AbortError' ? 'Timeout' : (e.message || 'Недоступний');
+      _diagSet(c.key, msg, 'err', '#A33030', '✗');
+    }
+  }
+}
+
+function _diagSet(key, sub, state, color, badge) {
+  const subEl = document.getElementById(`di-${key}`);
+  const badgeEl = document.getElementById(`di-${key}-badge`);
+  const iconEl = document.getElementById(`di-${key}-icon`);
+  if (subEl) { subEl.textContent = sub; subEl.style.color = color; subEl.style.opacity = '1'; }
+  if (badgeEl) { badgeEl.textContent = badge; badgeEl.className = `diag-badge${state ? ' '+state : ''}`; }
+  if (iconEl) { iconEl.className = `row-icon${state ? ' '+state : ''}`; }
+}
+
+function _diagSetRender() {
+  const hasErr = !!_lastLoadError;
+  const count = _lastLoadCount;
+  if (hasErr) {
+    _diagSet('render', _lastLoadError, 'err', '#A33030', '✗');
+  } else if (count !== null) {
+    _diagSet('render', `${count} в ENTRIES[]`, 'ok', '#2D7A48', '✓');
+  } else {
+    _diagSet('render', 'не запускався', '', 'rgba(30,16,40,0.4)', '—');
+  }
+}
+
 function openSettings() {
   document.getElementById('backendInput').value = getBackendUrl();
+  _diagSetRender();
   document.getElementById('settingsOverlay').classList.add('on');
   document.getElementById('settingsSheet').classList.add('up');
 }
