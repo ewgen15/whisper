@@ -788,6 +788,7 @@ async function loadEntries() {
       try { ENTRIES = data.map(normalizeEntry); }
       catch(e) { _lastLoadError = `normalizeEntry: ${e.message}`; throw e; }
       _lastLoadCount = ENTRIES.length;
+      try { localStorage.setItem('diary_entries', JSON.stringify(data)); } catch {}
       setBackendBanner(false);
       return;
     }
