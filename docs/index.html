@@ -24,27 +24,21 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html {
-  height: 100%;
-  background-color: #E080B0;
-  background-image:
-    radial-gradient(ellipse at 18% 12%, #FFCBA4 0%, transparent 52%),
-    radial-gradient(ellipse at 82% 88%, #B868D8 0%, transparent 52%),
-    radial-gradient(ellipse at 68% 32%, #E8819A 0%, transparent 50%),
-    radial-gradient(ellipse at 28% 72%, #F5A8C8 0%, transparent 46%);
-  background-repeat: no-repeat;
-  /* iOS PWA: the layout viewport is shorter than the screen, and the strip below it is painted
-     only by the root background. position:fixed layers are clipped at the viewport edge, so the
-     gradient lives on the root and is made taller than the box to reach the screen bottom. */
-  background-size: 100% calc(100% + 160px);
-}
+/* Layout from the first versions (known good in the iOS PWA): gradient on body, html+body locked to
+   the viewport. Later experiments (fixed ::before layers, root background, 100dvh) left a flat strip. */
+html, body { height: 100%; overflow: hidden; }
+html { background: #E080B0; }
 
 body {
-  min-height: 100%;
-  overflow: hidden;
   font-family: 'Fixel Text', system-ui, sans-serif;
   font-weight: 300;
   color: var(--plum);
+  background:
+    radial-gradient(ellipse at 18% 12%, #FFCBA4 0%, transparent 52%),
+    radial-gradient(ellipse at 82% 88%, #B868D8 0%, transparent 52%),
+    radial-gradient(ellipse at 68% 32%, #E8819A 0%, transparent 50%),
+    radial-gradient(ellipse at 28% 72%, #F5A8C8 0%, transparent 46%),
+    #E080B0;
   display: flex;
   justify-content: center;
 }
@@ -52,7 +46,7 @@ body {
 .app {
   width: 100%;
   max-width: 430px;
-  height: 100dvh;
+  height: 100vh;
   position: relative;
   overflow: hidden;
 }
@@ -909,7 +903,7 @@ body.has-banner .hdr {
 </div><!-- /app -->
 
 <script>
-const APP_VERSION = '2026-10-22.441c74';
+const APP_VERSION = '2026-10-22.da4c98';
 
 /* ── Error log (last 20, localStorage) ────────────── */
 const ERRLOG_KEY = 'diary_errlog';
@@ -1158,7 +1152,7 @@ function _diagSetExtra() {
   const nt = ENTRIES.filter(x => x.notionId).length, vec = ENTRIES.filter(x => x.docId).length;
   if (n) _diagSet('sync', `Notion ${nt}/${n} · Вектор ${vec}/${n}`, nt === n && vec === n ? 'ok' : '', nt === n && vec === n ? '#2D7A48' : 'rgba(30,16,40,0.7)', '');
   else _diagSet('sync', 'немає записів', '', 'rgba(30,16,40,0.4)', '—');
-  _diagSet('ver', `${APP_VERSION} · кеш ${cacheSizeKB()} КБ`, '', 'rgba(30,16,40,0.7)', '');
+  _diagSet('ver', `${APP_VERSION} · кеш ${cacheSizeKB()} КБ · вікно ${innerWidth}×${innerHeight}, екран ${screen.width}×${screen.height}`, '', 'rgba(30,16,40,0.7)', '');
 }
 
 function _diagSet(key, sub, state, color, badge) {
