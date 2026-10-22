@@ -116,6 +116,8 @@ def save_notion(entry: dict) -> None:
     for notion_name, key in (("Контекст", "context"), ("Проект", "project")):
         if entry.get(key):
             props[notion_name] = {"rich_text": _rich(entry[key])[:1]}
+    if entry.get("people"):
+        props["Ім'я контакта"] = {"rich_text": _rich(", ".join(entry["people"]))[:1]}
 
     children = [
         {"object": "block", "type": "paragraph", "paragraph": {"rich_text": _rich(chunk)}}
