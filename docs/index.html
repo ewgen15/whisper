@@ -189,6 +189,16 @@ body.has-banner .hdr {
   border: 1px solid rgba(30,16,40,0.16);
   opacity: 0.7;
 }
+.card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sync { display: inline-flex; gap: 4px; flex-shrink: 0; }
+.sync i {
+  font-style: normal; font-size: 0.52rem; font-weight: 500; line-height: 1;
+  width: 15px; height: 15px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(30,16,40,0.3); opacity: 0.4;
+}
+.sync i.on { background: var(--plum); color: var(--cream); border-color: var(--plum); opacity: 0.7; }
+.sync i.warn { border-color: rgba(170,90,50,0.9); color: rgba(140,70,30,1); opacity: 1; }
 .card-meta {
   font-size: 0.67rem;
   letter-spacing: 0.02em;
@@ -922,6 +932,9 @@ function normalizeEntry(e) {
     date:           e.date_label    || new Date(e.created_at).toLocaleString('uk', {day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}),
     month:          e.month_label   || '',
     createdAt:      e.created_at    || null,
+    notionId:       e.notion_page_id || null,
+    docId:          e.document_id   || null,
+    local:          !!e._local,
   };
 }
 
@@ -1109,6 +1122,11 @@ function whenLabel(iso) {
   return `${d.toLocaleDateString('uk', { day: 'numeric', month: 'short' })}, ${time}`;
 }
 
+function syncDots(e) {
+  if (e.local) return '<span class="sync" title="Збережено лише на пристрої"><i class="warn">!</i></span>';
+  return `<span class="sync"><i class="${e.notionId ? 'on' : ''}" title="Notion">N</i><i class="${e.docId ? 'on' : ''}" title="Вектор">V</i></span>`;
+}
+
 function cardHTML(e) {
   const moods = e.mood.map(m => `<span class="mood-chip">${esc(m)}</span>`).join('');
   const tags = (e.tags || []).slice(0, 3).map(t => `<span class="tag-chip">#${esc(t)}</span>`).join('');
@@ -1120,7 +1138,10 @@ function cardHTML(e) {
     <div class="card-title">${esc(e.title)}</div>
     <div class="card-moods">${moods}</div>
     ${chips}
-    <div class="card-meta">${esc(when)} &nbsp;·&nbsp; ${esc(e.duration)} &nbsp;·&nbsp; ${esc(e.entryType)}</div>
+    <div class="card-foot">
+      <div class="card-meta">${esc(when)} &nbsp;·&nbsp; ${esc(e.duration)} &nbsp;·&nbsp; ${esc(e.entryType)}</div>
+      ${syncDots(e)}
+    </div>
   </div>`;
 }
 
@@ -1413,7 +1434,7 @@ async function saveEntry() {
     }
   } catch {
     // fallback: save locally
-    ENTRIES.unshift(normalizeEntry({ ...payload, id: Date.now(), created_at: now.toISOString() }));
+    ENTRIES.unshift(normalizeEntry({ ...payload, id: Date.now(), created_at: now.toISOString(), _local: true }));
     try { localStorage.setItem('diary_entries', JSON.stringify(ENTRIES)); } catch {}
   }
 
