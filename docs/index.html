@@ -534,6 +534,10 @@ body.has-banner .hdr {
 }
 .det-text { white-space: pre-wrap; }
 
+#settingsSheet { max-height: 92dvh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.errlog-box { font-family: ui-monospace, Menlo, monospace; font-size: 0.66rem; line-height: 1.45; max-height: 170px; overflow-y: auto; background: rgba(30,16,40,0.05); border-radius: 10px; padding: 8px 10px; white-space: pre-wrap; word-break: break-word; margin-top: 8px; }
+.mini-btn { background: rgba(30,16,40,0.06); border: none; border-radius: 8px; padding: 6px 12px; font-size: 0.72rem; font-family: 'Fixel Text', sans-serif; color: inherit; cursor: pointer; }
+
 /* ── Detail screen ────────────────────────────────── */
 #detail .hdr { justify-content: flex-start; gap: 0; }
 #detail .hdr-back { flex: 0 0 auto; }
@@ -855,6 +859,18 @@ body.has-banner .hdr {
     </div>
   </div>
 
+  <div style="margin-bottom:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <div id="errlogTitle" style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.4">Журнал помилок</div>
+      <div style="display:flex;gap:6px">
+        <button class="mini-btn" id="errlogToggle" onclick="toggleErrLog()">Показати</button>
+        <button class="mini-btn" onclick="copyErrLog()" id="errlogCopy">Скопіювати</button>
+        <button class="mini-btn" onclick="clearErrLog()">Очистити</button>
+      </div>
+    </div>
+    <div class="errlog-box" id="errlogBox" hidden></div>
+  </div>
+
   <div class="sheet-btns">
     <button class="btn-sec" onclick="closeSettings()">Закрити</button>
     <button class="btn-pri on" onclick="saveSettings()">Зберегти URL</button>
@@ -864,6 +880,50 @@ body.has-banner .hdr {
 </div><!-- /app -->
 
 <script>
+/* ── Error log (last 20, localStorage) ────────────── */
+const ERRLOG_KEY = 'diary_errlog';
+function readErrLog() {
+  try { return JSON.parse(localStorage.getItem(ERRLOG_KEY) || '[]'); } catch { return []; }
+}
+function logError(where, err) {
+  const msg = String((err && err.message) || err || 'unknown').slice(0, 300);
+  try {
+    const log = readErrLog();
+    log.push({ t: new Date().toISOString(), where, msg });
+    localStorage.setItem(ERRLOG_KEY, JSON.stringify(log.slice(-20)));
+  } catch {}
+  if (typeof renderErrLog === 'function') renderErrLog();
+}
+window.addEventListener('error', e => logError('window.onerror', e.message + (e.lineno ? ` @${e.lineno}` : '')));
+window.addEventListener('unhandledrejection', e => logError('unhandledrejection', e.reason));
+
+function errLogText() {
+  return readErrLog().map(e => `${e.t.slice(0, 19).replace('T', ' ')}Z [${e.where}] ${e.msg}`).join('\n');
+}
+function renderErrLog() {
+  const box = document.getElementById('errlogBox');
+  if (!box) return;
+  const n = readErrLog().length;
+  document.getElementById('errlogTitle').textContent = `Журнал помилок · ${n}`;
+  box.textContent = n ? errLogText() : 'Порожньо';
+}
+function toggleErrLog() {
+  const box = document.getElementById('errlogBox');
+  box.hidden = !box.hidden;
+  document.getElementById('errlogToggle').textContent = box.hidden ? 'Показати' : 'Сховати';
+  renderErrLog();
+}
+async function copyErrLog() {
+  const btn = document.getElementById('errlogCopy');
+  try { await navigator.clipboard.writeText(errLogText() || 'Порожньо'); btn.textContent = 'Скопійовано ✓'; }
+  catch { btn.textContent = 'Не вдалося'; }
+  setTimeout(() => { btn.textContent = 'Скопіювати'; }, 1500);
+}
+function clearErrLog() {
+  try { localStorage.removeItem(ERRLOG_KEY); } catch {}
+  renderErrLog();
+}
+
 /* ── Storage ───────────────────────────────────────── */
 let ENTRIES = [];
 let _lastLoadError = null;
@@ -894,6 +954,7 @@ async function loadEntries() {
     if (!_lastLoadError) _lastLoadError = e.name === 'AbortError' ? 'Timeout (10s)' : (e.message || 'network error');
   }
   setBackendBanner(true);
+  logError('loadEntries', _lastLoadError || 'backend unavailable');
   try { ENTRIES = JSON.parse(localStorage.getItem('diary_entries') || '[]').map(normalizeEntry); }
   catch { ENTRIES = []; }
 }
@@ -934,7 +995,7 @@ function normalizeEntry(e) {
     createdAt:      e.created_at    || null,
     notionId:       e.notion_page_id || null,
     docId:          e.document_id   || null,
-    local:          !!e._local,
+    local:          !!(e._local || e.local),
   };
 }
 
@@ -1068,6 +1129,7 @@ function openSettings() {
   const urlLine = document.getElementById('diagUrlLine');
   if (urlLine) urlLine.textContent = `→ ${getBackendUrl()}`;
   _diagSetRender();
+  renderErrLog();
   document.getElementById('settingsOverlay').classList.add('on');
   document.getElementById('settingsSheet').classList.add('up');
 }
@@ -1236,7 +1298,10 @@ async function apiEntry(method, id, body) {
     headers: authHeaders(body ? { 'Content-Type': 'application/json' } : undefined),
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) throw new Error(res.status === 429 ? 'Забагато запитів, спробуй за хвилину' : `HTTP ${res.status}`);
+  if (!res.ok) {
+    logError(`apiEntry ${method}`, `HTTP ${res.status}`);
+    throw new Error(res.status === 429 ? 'Забагато запитів, спробуй за хвилину' : `HTTP ${res.status}`);
+  }
   return res.json();
 }
 
@@ -1392,6 +1457,7 @@ async function transcribeAndEnrich(blob) {
     saveBtn.classList.add('on');
 
   } catch(err) {
+    logError('transcribeAndEnrich', err);
     document.getElementById('sheetTitle').textContent = 'Помилка';
     document.getElementById('sheetSub').textContent   = 'Перевір backend URL в налаштуваннях';
     setStatus('⚠️', err.message || 'Не вдалося');
@@ -1430,9 +1496,10 @@ async function saveEntry() {
       const saved = await res.json();
       ENTRIES.unshift(normalizeEntry(saved));
     } else {
-      throw new Error();
+      throw new Error(`HTTP ${res.status}`);
     }
-  } catch {
+  } catch (err) {
+    logError('saveEntry', err);
     // fallback: save locally
     ENTRIES.unshift(normalizeEntry({ ...payload, id: Date.now(), created_at: now.toISOString(), _local: true }));
     try { localStorage.setItem('diary_entries', JSON.stringify(ENTRIES)); } catch {}
