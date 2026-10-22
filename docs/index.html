@@ -919,7 +919,7 @@ function fitScreenHeight() {
 }
 fitScreenHeight();
 addEventListener('resize', fitScreenHeight);
-const APP_VERSION = '2026-10-22.e174dd';
+const APP_VERSION = '2026-10-22.54d19c';
 
 /* ── Error log (last 20, localStorage) ────────────── */
 const ERRLOG_KEY = 'diary_errlog';
@@ -1451,6 +1451,23 @@ function filterEntries() {
 /* ── Recording ─────────────────────────────────────── */
 recBtn.addEventListener('click', () => isRecording ? stopRecording() : startRecording());
 
+// Keep the screen awake while recording: iOS stops the mic on auto-lock
+let wakeLock = null;
+async function holdScreen() {
+  try {
+    if (!navigator.wakeLock || wakeLock) return;
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+  } catch (e) { logError('wakeLock', e); }
+}
+function releaseScreen() {
+  try { if (wakeLock) wakeLock.release(); } catch {}
+  wakeLock = null;
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && isRecording) holdScreen();
+});
+
 async function startRecording() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1465,6 +1482,7 @@ async function startRecording() {
     return;
   }
   isRecording = true;
+  holdScreen();
   elapsed = 0;
   buildBars();
   recBtn.classList.add('rec');
@@ -1481,6 +1499,7 @@ async function startRecording() {
 
 function stopRecording() {
   isRecording = false;
+  releaseScreen();
   clearInterval(timerInterval);
   recBtn.classList.remove('rec');
   recBtn.setAttribute('aria-pressed','false');
