@@ -907,7 +907,19 @@ body.has-banner .hdr {
 </div><!-- /app -->
 
 <script>
-const APP_VERSION = '2026-10-22.a93762';
+// iOS PWA sometimes gives a layout viewport shorter than the screen (status bar height); stretch to the screen
+function fitScreenHeight() {
+  const gap = screen.height - innerHeight;
+  if (gap > 20 && gap < 120 && matchMedia('(display-mode: standalone)').matches) {
+    document.documentElement.style.height = screen.height + 'px';
+    document.body.style.height = screen.height + 'px';
+    const app = document.querySelector('.app');
+    if (app) app.style.height = screen.height + 'px';
+  }
+}
+fitScreenHeight();
+addEventListener('resize', fitScreenHeight);
+const APP_VERSION = '2026-10-22.5ee09f';
 
 /* ── Error log (last 20, localStorage) ────────────── */
 const ERRLOG_KEY = 'diary_errlog';
