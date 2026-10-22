@@ -44,3 +44,21 @@ def get_entries(limit: int = 50) -> list[dict]:
         .execute()
     )
     return result.data or []
+
+
+def get_entry(entry_id: int) -> dict | None:
+    result = get_client().table("entries").select("*").eq("id", entry_id).execute()
+    return result.data[0] if result.data else None
+
+
+def update_entry(entry_id: int, changes: dict) -> dict | None:
+    result = get_client().table("entries").update(changes).eq("id", entry_id).execute()
+    return result.data[0] if result.data else None
+
+
+def set_entry_links(entry_id: int, links: dict) -> None:
+    get_client().table("entries").update(links).eq("id", entry_id).execute()
+
+
+def delete_entry(entry_id: int) -> None:
+    get_client().table("entries").delete().eq("id", entry_id).execute()

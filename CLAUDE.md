@@ -27,8 +27,10 @@ iPhone/Mac ──► PWA  https://ewgen15.github.io/whisper/   (GitHub Pages, п
    Міні-PC (Ubuntu, Docker, ~/whisper/backend): FastAPI
       POST /transcribe   faster-whisper small, CPU
       POST /enrich       GPT-4o-mini → JSON з полями запису
-      POST /save         entries (Supabase) + sync: documents/embeddings + Notion
+      POST /save         entries (Supabase) + sync: documents/embeddings + Notion; зберігає notion_page_id/document_id
       GET  /entries      читання з Supabase
+      PATCH  /entries/id редагування (title,text,tags,mood,…) + оновлення Notion-сторінки та embedding
+      DELETE /entries/id видалення; Notion-сторінка архівується, documents/embeddings видаляються
       GET  /health       без авторизації
 ```
 
@@ -53,8 +55,8 @@ docker run --rm -v "$PWD/backend:/app" -w /app python:3.11-slim sh -c \
 
 - `.githooks/pre-push` запускає швидкі перевірки. Підключення на новій машині: `git config core.hooksPath .githooks`.
 - CI: `.github/workflows/ci.yml` (ruff + pytest на 3.11, синтаксис фронтенда, валідність manifest). `deploy-backend.yml` викликає CI першим кроком (`needs: ci`) — червоний CI = немає деплою.
-- Додаючи бекенд-логіку, додавай тест у `backend/tests/test_app.py` (зовнішні виклики мокай, див. `test_notion_payload`).
-- Тести покривають: авторизацію й CORS/PNA; формат embedding-рядка; `save_vector` (порядок `documents` → `embeddings`, модель ada-002, пропуск порожнього тексту); payload Notion; ізоляцію збоїв у `sync_entry`; `/save` і поле `sync`; постобробку `enrich` (час доби рахує код). **Не покрито:** реальні виклики OpenAI/Supabase/Notion (перевіряються вручну тестовим записом, який потім видаляється), якість самого промпту, поведінку UI.
+- Додаючи бекенд-логіку, додавай тест у `backend/tests/` (зовнішні виклики мокай — фікстури `sb`, `oai`, `notion` у `conftest.py`).
+- Тести покривають: авторизацію й CORS/PNA; формат embedding-рядка; `save_vector` (порядок `documents` → `embeddings`, модель ada-002, пропуск порожнього тексту); payload Notion; ізоляцію збоїв у `sync_entry`; `/save` і поле `sync`; постобробку `enrich` (час доби рахує код). Також: update/delete у Notion і векторах, PATCH/DELETE ендпоїнти, rate limit, структура CI-воркфлоу (`test_repo.py`). **Не покрито:** реальні виклики OpenAI/Supabase/Notion (перевіряються вручну тестовим записом, який потім видаляється), якість самого промпту, поведінку UI.
 - Після тестів прибери артефакти (`__pycache__`, `.ruff_cache`) — вони в `.gitignore`, але не залишай їх у `backend/`, якщо монтував його в Docker.
 
 ## Деплой
@@ -65,7 +67,10 @@ docker run --rm -v "$PWD/backend:/app" -w /app python:3.11-slim sh -c \
   ssh -i ~/.ssh/id_ed25519 ewgen15@100.67.129.25 \
     'cd ~/whisper && git pull origin main && cd backend && docker compose down && docker compose up -d --build'
   ```
-  Використовуй `down` перед `up`, інакше буває «container name conflict / marked for removal».
+  Використовуй `down` перед `up`, інакше буває «container name conflict / marked for removal». Те саме робить `scripts/deploy.sh`.
+- **CI-джоби:** `backend`, `frontend`, `docker` (збірка образу + `/health`). Вони мають бути *required checks* у branch protection на `main` (налаштовується в GitHub UI).
+- **Алерт:** `.github/workflows/uptime.yml` кожні 15 хв б'є в `/health`; якщо сервер лежить — відкриває issue `server-down` і падає (GitHub надсилає email), коли оживе — закриває issue.
+- **Rate limit:** `ratelimit.py`, 60 запитів/хв на IP (`RATE_LIMIT_PER_MIN`), `/health` і OPTIONS не лімітуються; 429 і 401 мають CORS-заголовки (порядок middleware у `main.py`: PNA → CORS → RateLimit → ApiKey).
 - Швидко перевірити код у контейнері без деплою: `cat file.py | ssh … 'docker exec -i backend-diary-backend-1 python -'`.
 
 ## Змінні середовища бекенду (`backend/.env` на сервері)

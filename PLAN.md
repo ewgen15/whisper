@@ -67,9 +67,11 @@ iPhone (Tailscale)
 ### Фаза 3 — Заміна n8n-флоу (код готовий, вмикається прапорцями)
 - [x] `POST /save` записує в Notion (`NOTION_ENABLED`, `NOTION_TOKEN`)
 - [x] `POST /save` пише `documents` + `embeddings` ada-002 (`VECTOR_ENABLED`)
-- [ ] Додати `NOTION_TOKEN` і прапорці в `.env` на сервері, перебудувати контейнер, протестувати без дублів з n8n
+- [x] `NOTION_TOKEN` і прапорці в `.env` на сервері, протестовано
 - [ ] Вимкнути відповідні кроки в n8n
-- [ ] Зберігати `notion_page_id` в Supabase (потрібна колонка)
+- [x] `notion_page_id` і `document_id` зберігаються в `entries`
+- [x] Редагування/видалення запису в застосунку синхронізується з Notion і векторами
+- [x] Rate limit, docker-збірка в CI, uptime-алерт через GitHub issue
 
 ### Фаза 4 — Семантичний пошук
 - [x] Генерувати embeddings після збереження (див. Фазу 3)

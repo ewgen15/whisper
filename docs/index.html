@@ -478,6 +478,22 @@ body.has-banner .hdr {
   letter-spacing: 0.04em; color: var(--plum); opacity: 0.28; cursor: pointer;
 }
 
+.hdr-actions { margin-left: auto; display: flex; gap: 4px; }
+.hdr-act {
+  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  background: none; border: none; color: var(--plum); opacity: 0.6; cursor: pointer;
+}
+.hdr-act:active { opacity: 1; }
+.hdr-act.danger { color: rgba(140,70,30,1); }
+.edit-sheet { max-height: 88vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.f-label { font-size:0.7rem; letter-spacing:0.08em; text-transform:uppercase; opacity:0.4; margin:0 0 6px; }
+.f-input {
+  width:100%; background:rgba(30,16,40,0.05); border:1.5px solid rgba(30,16,40,0.12);
+  border-radius:12px; padding:12px 14px; margin-bottom:14px; font-family:'Fixel Text',sans-serif;
+  font-size:16px; color:#1E1028; outline:none; resize:vertical;  /* 16px: no iOS zoom on focus */
+}
+.det-text { white-space: pre-wrap; }
+
 /* ── Detail screen ────────────────────────────────── */
 #detail .hdr { justify-content: flex-start; gap: 0; }
 #detail .hdr-back { flex: 0 0 auto; }
@@ -612,6 +628,14 @@ body.has-banner .hdr {
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       Назад
     </button>
+    <div class="hdr-actions">
+      <button class="hdr-act" aria-label="Редагувати" onclick="openEdit()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+      </button>
+      <button class="hdr-act danger" aria-label="Видалити" onclick="deleteCurrent()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      </button>
+    </div>
   </div>
   <div class="detail-body" id="detailBody"></div>
 </div>
@@ -705,6 +729,25 @@ body.has-banner .hdr {
     <button class="btn-pri" id="saveBtn" onclick="saveEntry()">Зберегти</button>
   </div>
   <button class="btn-del" onclick="discardEntry()">Видалити запис</button>
+</div>
+
+<!-- Edit sheet -->
+<div class="overlay" id="editOverlay" onclick="closeEdit()"></div>
+<div class="sheet edit-sheet" id="editSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head"><div class="sheet-title">Редагувати запис</div></div>
+  <div class="f-label">Назва</div>
+  <input id="editTitle" class="f-input" type="text">
+  <div class="f-label">Текст</div>
+  <textarea id="editText" class="f-input" rows="8"></textarea>
+  <div class="f-label">Теги (через кому)</div>
+  <input id="editTags" class="f-input" type="text">
+  <div class="f-label">Настрій (через кому)</div>
+  <input id="editMood" class="f-input" type="text">
+  <div class="sheet-btns">
+    <button class="btn-sec" onclick="closeEdit()">Скасувати</button>
+    <button class="btn-pri on" id="editSaveBtn" onclick="saveEdit()">Зберегти</button>
+  </div>
 </div>
 
 <!-- Settings sheet -->
@@ -826,6 +869,10 @@ function setBackendBanner(show) {
   }
   el.style.display = show ? 'block' : 'none';
   document.body.classList.toggle('has-banner', show);
+}
+
+function esc(v) {
+  return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 function normalizeEntry(e) {
@@ -1021,11 +1068,11 @@ function buildMiniWave() {
 
 /* ── Render ────────────────────────────────────────── */
 function cardHTML(e) {
-  const moods = e.mood.map(m => `<span class="mood-chip">${m}</span>`).join('');
+  const moods = e.mood.map(m => `<span class="mood-chip">${esc(m)}</span>`).join('');
   return `<div class="entry-card" onclick="openDetail(${e.id})">
-    <div class="card-title">${e.title}</div>
+    <div class="card-title">${esc(e.title)}</div>
     <div class="card-moods">${moods}</div>
-    <div class="card-meta">${e.duration} &nbsp;·&nbsp; ${e.entryType} &nbsp;·&nbsp; ${e.timeOfDay}</div>
+    <div class="card-meta">${esc(e.duration)} &nbsp;·&nbsp; ${esc(e.entryType)} &nbsp;·&nbsp; ${esc(e.timeOfDay)}</div>
   </div>`;
 }
 
@@ -1047,7 +1094,7 @@ function renderList(list) {
   let html = '', lastMonth = '';
   list.forEach(e => {
     if (e.month !== lastMonth) {
-      html += `<div class="month-row">${e.month}</div>`;
+      html += `<div class="month-row">${esc(e.month)}</div>`;
       lastMonth = e.month;
     }
     html += cardHTML(e);
@@ -1055,32 +1102,110 @@ function renderList(list) {
   c.innerHTML = html;
 }
 
+let currentDetailId = null;
+
 function openDetail(id) {
+  if (renderDetail(id)) showScreen('detail');
+}
+
+function renderDetail(id) {
   const e = ENTRIES.find(x => x.id === id);
-  if (!e) return;
+  if (!e) return false;
+  currentDetailId = id;
   const pE = ['Поганий','Пригнічений'].includes(e.emotionalState) ? 'pill-bad' : ['Хороший','Гарний','Позитивний'].includes(e.emotionalState) ? 'pill-good' : 'pill-ok';
   const pP = e.physicalState  === 'Поганий' ? 'pill-bad' : ['Хороший','Гарний','Бадьорий'].includes(e.physicalState) ? 'pill-good' : 'pill-ok';
   const miniW = Array.from({length:28}, (_,i) =>
     `<div class="mini-bar" style="height:${6+Math.round(Math.sin(i*0.7)*10+Math.random()*12)}px"></div>`).join('');
   document.getElementById('detailBody').innerHTML = `
-    <div class="det-eyebrow">${e.entryType} &nbsp;·&nbsp; ${e.timeOfDay}</div>
-    <div class="det-title">${e.title}</div>
+    <div class="det-eyebrow">${esc(e.entryType)} &nbsp;·&nbsp; ${esc(e.timeOfDay)}</div>
+    <div class="det-title">${esc(e.title)}</div>
     <div class="det-pills">
-      <span class="pill ${pE}">😔 ${e.emotionalState}</span>
-      <span class="pill ${pP}">🏃 ${e.physicalState}</span>
+      <span class="pill ${pE}">😔 ${esc(e.emotionalState)}</span>
+      <span class="pill ${pP}">🏃 ${esc(e.physicalState)}</span>
     </div>
-    <div class="card-moods" style="margin-bottom:0">${e.mood.map(m=>`<span class="mood-chip">${m}</span>`).join('')}</div>
+    <div class="card-moods" style="margin-bottom:0">${e.mood.map(m=>`<span class="mood-chip">${esc(m)}</span>`).join('')}</div>
     <div class="divider"></div>
-    <div class="det-text">${e.text}</div>
-    ${e.context ? `<div class="det-label">Контекст</div><div class="det-value">${e.context}</div>` : ''}
-    ${e.project ? `<div class="det-label">Проект</div><div class="det-value">${e.project}</div>` : ''}
-    ${e.tags?.length ? `<div class="det-label">Теги</div><div class="det-tags">${e.tags.map(t=>`<span class="mood-chip">${t}</span>`).join('')}</div>` : ''}
+    <div class="det-text">${esc(e.text)}</div>
+    ${e.context ? `<div class="det-label">Контекст</div><div class="det-value">${esc(e.context)}</div>` : ''}
+    ${e.project ? `<div class="det-label">Проект</div><div class="det-value">${esc(e.project)}</div>` : ''}
+    ${e.tags?.length ? `<div class="det-label">Теги</div><div class="det-tags">${e.tags.map(t=>`<span class="mood-chip">${esc(t)}</span>`).join('')}</div>` : ''}
     <div class="det-audio">
       <div class="mini-bars" style="height:24px">${miniW}</div>
-      <span class="sheet-dur">${e.duration}</span>
+      <span class="sheet-dur">${esc(e.duration)}</span>
     </div>
-    <div class="det-date">${e.date}</div>`;
-  showScreen('detail');
+    <div class="det-date">${esc(e.date)}</div>`;
+  return true;
+}
+
+/* ── Edit / delete ─────────────────────────────────── */
+function currentEntry() { return ENTRIES.find(x => x.id === currentDetailId); }
+const csv = v => v.split(',').map(x => x.trim()).filter(Boolean);
+
+function openEdit() {
+  const e = currentEntry();
+  if (!e) return;
+  document.getElementById('editTitle').value = e.title;
+  document.getElementById('editText').value  = e.text;
+  document.getElementById('editTags').value  = e.tags.join(', ');
+  document.getElementById('editMood').value  = e.mood.join(', ');
+  document.getElementById('editOverlay').classList.add('on');
+  document.getElementById('editSheet').classList.add('up');
+}
+function closeEdit() {
+  document.getElementById('editOverlay').classList.remove('on');
+  document.getElementById('editSheet').classList.remove('up');
+}
+
+function syncWarning(sync) {
+  const bad = Object.entries(sync || {}).filter(([, v]) => v !== 'ok');
+  if (bad.length) alert('Збережено в застосунку, але не синхронізовано: ' + bad.map(([k, v]) => `${k} (${v})`).join(', '));
+}
+
+async function apiEntry(method, id, body) {
+  const res = await fetch(`${getBackendUrl()}/entries/${id}`, {
+    method,
+    headers: authHeaders(body ? { 'Content-Type': 'application/json' } : undefined),
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) throw new Error(res.status === 429 ? 'Забагато запитів, спробуй за хвилину' : `HTTP ${res.status}`);
+  return res.json();
+}
+
+async function saveEdit() {
+  const e = currentEntry();
+  const btn = document.getElementById('editSaveBtn');
+  const title = document.getElementById('editTitle').value.trim();
+  const text  = document.getElementById('editText').value.trim();
+  if (!e || !title || !text) { alert('Назва і текст не можуть бути порожніми'); return; }
+  btn.disabled = true;
+  try {
+    const row = await apiEntry('PATCH', e.id, {
+      title, text,
+      tags: csv(document.getElementById('editTags').value),
+      mood: csv(document.getElementById('editMood').value),
+    });
+    const i = ENTRIES.findIndex(x => x.id === e.id);
+    ENTRIES[i] = normalizeEntry(row);
+    closeEdit();
+    renderHome(); filterEntries(); renderDetail(e.id);
+    syncWarning(row.sync);
+  } catch (err) {
+    alert('Не вдалося зберегти: ' + err.message);
+  } finally { btn.disabled = false; }
+}
+
+async function deleteCurrent() {
+  const e = currentEntry();
+  if (!e || !confirm(`Видалити запис «${e.title}»?\nВін зникне і з Notion та векторної бази.`)) return;
+  try {
+    const r = await apiEntry('DELETE', e.id);
+    ENTRIES = ENTRIES.filter(x => x.id !== e.id);
+    renderHome(); filterEntries();
+    goBack();
+    syncWarning(r.sync);
+  } catch (err) {
+    alert('Не вдалося видалити: ' + err.message);
+  }
 }
 
 /* ── List filters ──────────────────────────────────── */

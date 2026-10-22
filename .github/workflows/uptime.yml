@@ -1,0 +1,52 @@
+name: Uptime
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+env:
+  HEALTH_URL: ${{ vars.HEALTH_URL || 'https://homeserver.tail54ecf6.ts.net/health' }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe /health (3 attempts)
+        id: probe
+        continue-on-error: true
+        run: |
+          for i in 1 2 3; do
+            curl -fsS --max-time 15 "$HEALTH_URL" && exit 0
+            sleep 10
+          done
+          exit 1
+
+      - name: Open an issue when down
+        if: steps.probe.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --label server-down --state open --json number --jq '.[0].number')
+          if [ -z "$existing" ]; then
+            gh label create server-down --repo "$GITHUB_REPOSITORY" --color B60205 2>/dev/null || true
+            gh issue create --repo "$GITHUB_REPOSITORY" --label server-down \
+              --title "Whisper server is unreachable" \
+              --body "$HEALTH_URL did not answer 3 times in a row ($(date -u +%FT%TZ)). Check the mini PC, Docker and Tailscale Funnel."
+          fi
+
+      - name: Close the issue when back up
+        if: steps.probe.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for n in $(gh issue list --repo "$GITHUB_REPOSITORY" --label server-down --state open --json number --jq '.[].number'); do
+            gh issue close "$n" --repo "$GITHUB_REPOSITORY" --comment "Server is reachable again ($(date -u +%FT%TZ))."
+          done
+
+      - name: Fail the run so GitHub emails about it
+        if: steps.probe.outcome == 'failure'
+        run: exit 1

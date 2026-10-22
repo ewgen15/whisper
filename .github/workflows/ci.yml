@@ -25,6 +25,23 @@ jobs:
       - name: Tests
         run: pytest -q
 
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image
+        run: docker build -t whisper-backend backend
+      - name: Smoke test /health
+        run: |
+          docker run -d --name smoke -p 8000:8000 \
+            -e OPENAI_API_KEY=x -e SUPABASE_URL=http://localhost -e SUPABASE_KEY=x whisper-backend
+          for i in $(seq 1 20); do
+            curl -fsS http://localhost:8000/health && exit 0
+            sleep 1
+          done
+          docker logs smoke
+          exit 1
+
   frontend:
     runs-on: ubuntu-latest
     steps:
