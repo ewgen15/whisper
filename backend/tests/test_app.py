@@ -183,3 +183,81 @@ def test_light_and_none_skip_the_correction_step(monkeypatch):
         monkeypatch.setattr(enrichment, "client", fake)
         enrichment.enrich("текст", edit_level=level)
         assert len(seen["calls"]) == 1
+
+
+def _fake_claude(monkeypatch, *texts):
+    """Replaces anthropic.Anthropic; returns the list of (api_key, create kwargs) it saw."""
+    import anthropic
+
+    calls = []
+    queue = list(texts)
+
+    class Block:
+        type = "text"
+
+        def __init__(self, text):
+            self.text = text
+
+    class Messages:
+        def __init__(self, key):
+            self.key = key
+
+        def create(self, **kw):
+            calls.append((self.key, kw))
+
+            class Resp:
+                content = [Block(queue.pop(0) if len(queue) > 1 else queue[0])]
+            return Resp()
+
+    class FakeAnthropic:
+        def __init__(self, api_key):
+            self.messages = Messages(api_key)
+
+    monkeypatch.setattr(anthropic, "Anthropic", FakeAnthropic)
+    return calls
+
+
+def test_anthropic_provider_uses_claude_models_and_parses_fenced_json(monkeypatch):
+    from app import enrichment
+
+    calls = _fake_claude(monkeypatch, "нова модель їсть токени", '```json\n{"title":"t","text":"x","mood":["спокійний"]}\n```')
+    out = enrichment.enrich("нова мандель їздить токенів", edit_level="full", provider="anthropic", api_key="sk-ant-x")
+    (key1, first), (key2, second) = calls
+    assert key1 == key2 == "sk-ant-x"
+    assert first["model"] == enrichment.PROVIDERS["anthropic"]["correct"]
+    assert second["model"] == enrichment.PROVIDERS["anthropic"]["extract"]
+    assert first["system"] and second["messages"][0]["role"] == "user"
+    assert out["title"] == "t" and out["mood"] == ["спокійний"]
+
+
+def test_anthropic_without_any_key_is_a_422(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    r = client.post("/enrich", json={"text": "привіт", "provider": "anthropic"})
+    assert r.status_code == 422 and "Anthropic" in r.json()["detail"]
+
+
+def test_enrich_passes_key_header_to_the_chosen_provider(monkeypatch):
+    calls = _fake_claude(monkeypatch, '{"title":"t","text":"x","mood":[]}')
+    r = client.post("/enrich", json={"text": "привіт", "provider": "anthropic", "edit_level": "light"},
+                    headers={"X-Anthropic-Key": "sk-ant-from-app"})
+    assert r.status_code == 200
+    assert calls[0][0] == "sk-ant-from-app"
+
+
+def test_enrich_rejects_unknown_provider():
+    r = client.post("/enrich", json={"text": "привіт", "provider": "gemini"})
+    assert r.status_code == 422
+
+
+def test_provider_failure_is_502_without_leaking_the_key(monkeypatch):
+    import anthropic
+
+    class Boom:
+        def __init__(self, api_key):
+            raise RuntimeError(f"bad key {api_key}")
+
+    monkeypatch.setattr(anthropic, "Anthropic", Boom)
+    r = client.post("/enrich", json={"text": "привіт", "provider": "anthropic", "edit_level": "light"},
+                    headers={"X-Anthropic-Key": "sk-ant-secret"})
+    assert r.status_code == 502
+    assert "sk-ant-secret" not in r.text

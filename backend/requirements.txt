@@ -3,6 +3,7 @@ uvicorn[standard]==0.30.6
 faster-whisper==1.0.3
 requests
 openai==1.51.0
+anthropic==0.39.0
 httpx<0.28.0
 python-multipart==0.0.12
 pydantic==2.9.2

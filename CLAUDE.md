@@ -26,7 +26,7 @@ iPhone/Mac ──► PWA  https://ewgen15.github.io/whisper/   (GitHub Pages, п
                 ▼
    Міні-PC (Ubuntu, Docker, ~/whisper/backend): FastAPI
       POST /transcribe   faster-whisper small, CPU; необов'язкове поле language (uk|en, інакше автовизначення)
-      POST /enrich       edit_level none|light|full: для full спершу gpt-4o править слова за контекстом, потім GPT-4o-mini → JSON з полями запису
+      POST /enrich       provider openai|anthropic (ключ з заголовка X-OpenAI-Key / X-Anthropic-Key або з .env), edit_level none|light|full: для full спершу gpt-4o править слова за контекстом, потім GPT-4o-mini → JSON з полями запису
       POST /save         entries (Supabase) + sync: documents/embeddings + Notion; зберігає notion_page_id/document_id
       GET  /entries      читання з Supabase
       PATCH  /entries/id редагування (title,text,tags,mood,…) + оновлення Notion-сторінки та embedding
@@ -81,6 +81,7 @@ docker run --rm -v "$PWD/backend:/app" -w /app python:3.11-slim sh -c \
 |---|---|
 | `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY` | обов'язкові |
 | `API_KEY` | якщо задано — усі запити (крім `OPTIONS` і `/health`) вимагають заголовок `X-API-Key`. Користувач вводить його в налаштуваннях застосунку. Бекенд **публічний** (Funnel), тому не вимикай |
+| `ANTHROPIC_API_KEY` | необов'язково: ключ Claude за замовчуванням для `provider=anthropic`. Ключ із налаштувань застосунку (заголовок `X-Anthropic-Key`) має пріоритет. Моделі: `PROVIDERS` в `enrichment.py` (Sonnet — правка, Haiku — поля) |
 | `VECTOR_ENABLED=true` | `/save` додатково пише в `documents` + `embeddings` |
 | `NOTION_ENABLED=true`, `NOTION_TOKEN`, (`NOTION_DATABASE_ID`) | `/save` додатково створює сторінку в Notion |
 

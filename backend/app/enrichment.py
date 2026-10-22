@@ -7,6 +7,44 @@ from openai import OpenAI
 
 client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
+# Models per provider: a stronger one for context-aware correction, a cheaper one for field extraction.
+PROVIDERS = {
+    "openai": {"correct": "gpt-4o", "extract": "gpt-4o-mini"},
+    "anthropic": {"correct": "claude-sonnet-5-5", "extract": "claude-haiku-5-5"},
+}
+
+
+class MissingKeyError(ValueError):
+    """No API key for the chosen provider (neither sent by the client nor set in the environment)."""
+
+
+def _complete(provider: str, api_key: str | None, role: str, system: str, messages: list,
+              temperature: float, json_mode: bool = False) -> str:
+    model = PROVIDERS[provider][role]
+    if provider == "anthropic":
+        key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+        if not key:
+            raise MissingKeyError("Ключ Anthropic не задано")
+        import anthropic  # imported lazily: only needed when this provider is used
+
+        resp = anthropic.Anthropic(api_key=key).messages.create(
+            model=model, system=system, messages=messages, max_tokens=4096, temperature=temperature,
+        )
+        return "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
+    oai = OpenAI(api_key=api_key) if api_key else client
+    kwargs = {"response_format": {"type": "json_object"}} if json_mode else {}
+    resp = oai.chat.completions.create(
+        model=model, messages=[{"role": "system", "content": system}, *messages],
+        temperature=temperature, **kwargs,
+    )
+    return resp.choices[0].message.content or ""
+
+
+def _parse_json(text: str) -> dict:
+    # Claude has no JSON mode: take the outermost object even if wrapped in prose or a code fence.
+    start, end = text.find("{"), text.rfind("}")
+    return json.loads(text[start:end + 1] if start != -1 and end > start else text)
+
 _TZ = ZoneInfo("Europe/Kyiv")
 
 # How much the model may touch the `text` field. "none" is enforced in code, not by the model.
@@ -84,20 +122,18 @@ _CORRECTION_EXAMPLE_IN = "Сьогодні тестували нову манд�
 _CORRECTION_EXAMPLE_OUT = "Сьогодні тестували нову модель, вона доволі багато їсть пам'яті. Тому я не зміг запустити її на старому ноутбуці."
 
 
-def correct_transcript(raw_text: str) -> str:
+def correct_transcript(raw_text: str, provider: str = "openai", api_key: str | None = None) -> str:
     """Context-aware fix of misheard words. Falls back to the raw text if the call fails."""
     try:
-        response = client.chat.completions.create(
-            model=CORRECTION_MODEL,
-            messages=[
-                {"role": "system", "content": _CORRECTION_PROMPT},
+        corrected = _complete(
+            provider, api_key, "correct", _CORRECTION_PROMPT,
+            [
                 {"role": "user", "content": _CORRECTION_EXAMPLE_IN},
                 {"role": "assistant", "content": _CORRECTION_EXAMPLE_OUT},
                 {"role": "user", "content": raw_text},
             ],
             temperature=0.2,
-        )
-        corrected = (response.choices[0].message.content or "").strip()
+        ).strip()
         return corrected or raw_text
     except Exception:
         return raw_text
@@ -113,23 +149,19 @@ def _time_of_day(hour: int) -> str:
     return "Ніч"
 
 
-def enrich(raw_text: str, edit_level: str = "full") -> dict:
+def enrich(raw_text: str, edit_level: str = "full", provider: str = "openai", api_key: str | None = None) -> dict:
     now = datetime.now(_TZ)
-    source = correct_transcript(raw_text) if edit_level == "full" else raw_text
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": (
-                f"<recorded_at>{now:%Y-%m-%d %H:%M}</recorded_at>\n"
-                f"<edit_level>{edit_level}: {EDIT_LEVELS[edit_level]}</edit_level>\n"
-                f"<transcript>\n{source}\n</transcript>"
-            )},
-        ],
-        response_format={"type": "json_object"},
-        temperature=0.3,
+    source = correct_transcript(raw_text, provider, api_key) if edit_level == "full" else raw_text
+    content = _complete(
+        provider, api_key, "extract", _SYSTEM_PROMPT,
+        [{"role": "user", "content": (
+            f"<recorded_at>{now:%Y-%m-%d %H:%M}</recorded_at>\n"
+            f"<edit_level>{edit_level}: {EDIT_LEVELS[edit_level]}</edit_level>\n"
+            f"<transcript>\n{source}\n</transcript>"
+        )}],
+        temperature=0.3, json_mode=True,
     )
-    result = json.loads(response.choices[0].message.content)
+    result = _parse_json(content)
     # Deterministic, like the n8n Day_time node — never trust the model with the clock.
     result["time_of_day"] = _time_of_day(now.hour)
     if edit_level == "none":

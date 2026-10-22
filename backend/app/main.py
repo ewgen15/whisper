@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 
-from .enrichment import EDIT_LEVELS, enrich
+from .enrichment import EDIT_LEVELS, PROVIDERS, MissingKeyError, enrich
 from .transcription import transcribe
 from .integrations import sync_entry, update_remote, delete_remote
 from .ratelimit import RateLimiter
@@ -96,6 +96,7 @@ ALLOWED_AUDIO_TYPES = {
 class EnrichRequest(BaseModel):
     text: str
     edit_level: str = "full"
+    provider: str = "openai"
 
 
 class SaveRequest(BaseModel):
@@ -129,13 +130,22 @@ async def transcribe_audio(file: UploadFile = File(...), language: str = Form("a
 
 
 @app.post("/enrich")
-async def enrich_text(req: EnrichRequest):
+async def enrich_text(req: EnrichRequest, request: Request):
     if not req.text.strip():
         raise HTTPException(status_code=422, detail="Text cannot be empty")
     if req.edit_level not in EDIT_LEVELS:
         raise HTTPException(status_code=422, detail=f"edit_level must be one of {sorted(EDIT_LEVELS)}")
-    result = enrich(req.text, edit_level=req.edit_level)
-    return result
+    if req.provider not in PROVIDERS:
+        raise HTTPException(status_code=422, detail=f"provider must be one of {sorted(PROVIDERS)}")
+    # A key from the app settings overrides the server's own; empty means "use the .env key".
+    api_key = request.headers.get(f"x-{req.provider}-key", "").strip() or None
+    try:
+        return await run_in_threadpool(enrich, req.text, req.edit_level, req.provider, api_key)
+    except MissingKeyError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        # Never echo the exception text: provider errors can contain parts of the key.
+        raise HTTPException(status_code=502, detail=f"{req.provider}: {type(e).__name__}")
 
 
 @app.post("/save")

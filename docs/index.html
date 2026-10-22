@@ -872,6 +872,20 @@ body.has-banner .hdr {
     <div style="font-size:0.7rem;opacity:0.35;margin-top:6px" id="segEditHint"></div>
   </div>
 
+  <div style="margin-bottom:16px">
+    <div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.4;margin-bottom:6px">Модель для обробки</div>
+    <div class="seg" id="segProvider">
+      <button data-v="openai" onclick="setPref('provider','openai')">OpenAI</button>
+      <button data-v="anthropic" onclick="setPref('provider','anthropic')">Claude</button>
+    </div>
+    <div style="font-size:0.7rem;opacity:0.35;margin-top:6px" id="segProviderHint"></div>
+    <input id="openaiKeyInput" type="password" autocomplete="off" style="width:100%;background:rgba(30,16,40,0.05);border:1.5px solid rgba(30,16,40,0.12);border-radius:12px;padding:12px 14px;font-family:'Fixel Text',sans-serif;font-size:0.88rem;color:#1E1028;outline:none;margin-top:10px"
+      placeholder="OpenAI ключ (необов'язково)">
+    <input id="anthropicKeyInput" type="password" autocomplete="off" style="width:100%;background:rgba(30,16,40,0.05);border:1.5px solid rgba(30,16,40,0.12);border-radius:12px;padding:12px 14px;font-family:'Fixel Text',sans-serif;font-size:0.88rem;color:#1E1028;outline:none;margin-top:8px"
+      placeholder="Anthropic ключ (необов'язково)">
+    <div style="font-size:0.7rem;opacity:0.35;margin-top:6px">Порожнє поле — береться ключ із сервера. Ключ зберігається лише на цьому пристрої й іде на бекенд з кожним запитом обробки.</div>
+  </div>
+
   <div style="margin-bottom:20px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
       <div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.4">Діагностика</div>
@@ -982,7 +996,7 @@ function fitScreenHeight() {
 }
 fitScreenHeight();
 addEventListener('resize', fitScreenHeight);
-const APP_VERSION = '2026-10-22.508a19';
+const APP_VERSION = '2026-10-22.8e4733';
 
 /* ── Error log (last 20, localStorage) ────────────── */
 const ERRLOG_KEY = 'diary_errlog';
@@ -1124,6 +1138,12 @@ function getApiKey() {
 function authHeaders(extra) {
   const k = getApiKey();
   return k ? { 'X-API-Key': k, ...extra } : { ...extra };
+}
+
+// The key from settings (if any) goes only to /enrich, under the header for the chosen provider.
+function enrichHeaders() {
+  const p = getPref('provider'), k = getLlmKey(p);
+  return authHeaders({ 'Content-Type': 'application/json', ...(k ? { [`X-${p === 'openai' ? 'OpenAI' : 'Anthropic'}-Key`]: k } : {}) });
 }
 
 /* ── State ─────────────────────────────────────────── */
@@ -1418,7 +1438,13 @@ async function drawMonthChart(days) {
   }
 }
 
-const PREFS = { lang: ['diary_lang', 'auto', ['auto','uk','en']], edit: ['diary_edit', 'full', ['none','light','full']] };
+const PREFS = { lang: ['diary_lang', 'auto', ['auto','uk','en']], edit: ['diary_edit', 'full', ['none','light','full']], provider: ['diary_provider', 'openai', ['openai','anthropic']] };
+const PROVIDER_HINTS = {
+  openai: 'Правка: gpt-4o, поля: gpt-4o-mini.',
+  anthropic: 'Правка: Claude Sonnet, поля: Claude Haiku.'
+};
+const LLM_KEYS = { openai: 'diary_key_openai', anthropic: 'diary_key_anthropic' };
+function getLlmKey(p) { try { return localStorage.getItem(LLM_KEYS[p]) || ''; } catch { return ''; } }
 const EDIT_HINTS = {
   none: 'Текст лишається точно як розпізнано.',
   light: 'Лише розділові знаки, великі літери та явні помилки слів.',
@@ -1433,17 +1459,21 @@ function setPref(name, value) {
   renderPrefs();
 }
 function renderPrefs() {
-  for (const [name, id] of [['lang','segLang'], ['edit','segEdit']]) {
+  for (const [name, id] of [['lang','segLang'], ['edit','segEdit'], ['provider','segProvider']]) {
     const cur = getPref(name);
     document.querySelectorAll(`#${id} button`).forEach(b => b.classList.toggle('on', b.dataset.v === cur));
   }
   const hint = document.getElementById('segEditHint');
   if (hint) hint.textContent = EDIT_HINTS[getPref('edit')];
+  const ph = document.getElementById('segProviderHint');
+  if (ph) ph.textContent = PROVIDER_HINTS[getPref('provider')];
 }
 
 function openSettings() {
   document.getElementById('backendInput').value = getBackendUrl();
   document.getElementById('apiKeyInput').value = getApiKey();
+  document.getElementById('openaiKeyInput').value = getLlmKey('openai');
+  document.getElementById('anthropicKeyInput').value = getLlmKey('anthropic');
   const urlLine = document.getElementById('diagUrlLine');
   if (urlLine) urlLine.textContent = `→ ${getBackendUrl()}`;
   renderPrefs();
@@ -1464,6 +1494,10 @@ function saveSettings() {
   try {
     if (key) localStorage.setItem('diary_api_key', key);
     else localStorage.removeItem('diary_api_key');
+    for (const p of Object.keys(LLM_KEYS)) {
+      const v = document.getElementById(p + 'KeyInput').value.trim();
+      if (v) localStorage.setItem(LLM_KEYS[p], v); else localStorage.removeItem(LLM_KEYS[p]);
+    }
   } catch {}
   closeSettings();
 }
@@ -1830,10 +1864,13 @@ async function transcribeAndEnrich(blob) {
     setStatus('<div class="spinner"></div>', 'Аналізується…');
     const en = await fetch(`${url}/enrich`, {
       method: 'POST',
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ text, edit_level: getPref('edit') })
+      headers: enrichHeaders(),
+      body: JSON.stringify({ text, edit_level: getPref('edit'), provider: getPref('provider') })
     });
-    if (!en.ok) throw new Error(`Enrich: ${en.status}`);
+    if (!en.ok) {
+      const detail = await en.json().then(j => j.detail, () => '');
+      throw new Error(`Enrich: ${en.status}${typeof detail === 'string' && detail ? ' · ' + detail : ''}`);
+    }
 
     enrichedData = { ...(await en.json()), rawText: text };
 
