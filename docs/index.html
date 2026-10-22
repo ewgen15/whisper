@@ -26,22 +26,17 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html {
   height: 100%;
-  background: #E080B0;
-}
-
-/* Фон на фіксованому шарі: покриває весь екран разом із safe-area (iOS PWA) */
-html::before {
-  content: '';
-  position: fixed;
-  top: -60px; right: 0; bottom: -120px; left: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
+  background-color: #E080B0;
+  background-image:
     radial-gradient(ellipse at 18% 12%, #FFCBA4 0%, transparent 52%),
     radial-gradient(ellipse at 82% 88%, #B868D8 0%, transparent 52%),
     radial-gradient(ellipse at 68% 32%, #E8819A 0%, transparent 50%),
-    radial-gradient(ellipse at 28% 72%, #F5A8C8 0%, transparent 46%),
-    #E080B0;
+    radial-gradient(ellipse at 28% 72%, #F5A8C8 0%, transparent 46%);
+  background-repeat: no-repeat;
+  /* iOS PWA: the layout viewport is shorter than the screen, and the strip below it is painted
+     only by the root background. position:fixed layers are clipped at the viewport edge, so the
+     gradient lives on the root and is made taller than the box to reach the screen bottom. */
+  background-size: 100% calc(100% + 160px);
 }
 
 body {
