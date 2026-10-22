@@ -649,6 +649,7 @@ body.has-banner .hdr {
 .cal-scroll::-webkit-scrollbar { display:none; }
 .cal-months { position:relative; height:14px; font-size:0.62rem; opacity:0.5; }
 .cal-months span { position:absolute; top:0; white-space:nowrap; }
+.cal-months b { font-weight:700; }
 .cal-grid { display:grid; grid-auto-flow:column; grid-template-rows:repeat(7,12px); grid-auto-columns:12px; gap:3px; margin-top:4px; }
 .cal-cell { border-radius:3px; background:rgba(30,16,40,0.06); }
 .cal-cell.sel { outline:2px solid var(--plum); outline-offset:1px; }
@@ -981,7 +982,7 @@ function fitScreenHeight() {
 }
 fitScreenHeight();
 addEventListener('resize', fitScreenHeight);
-const APP_VERSION = '2026-10-22.fb0992';
+const APP_VERSION = '2026-10-22.508a19';
 
 /* ── Error log (last 20, localStorage) ────────────── */
 const ERRLOG_KEY = 'diary_errlog';
@@ -1319,8 +1320,10 @@ function renderStats() {
     const key = new Date(ms).toISOString().slice(0, 10);
     const w = Math.floor((ms - start) / (7 * DAY_MS));
     if (dow(ms) === 0 && key.slice(0, 7) !== lastMonth && ms >= first - 6 * DAY_MS) {
+      const showYear = !lastMonth || key.slice(5, 7) === '01';
       lastMonth = key.slice(0, 7);
-      labels += `<span style="left:${w * 15}px">${new Date(ms).toLocaleDateString('uk', { month: 'short', timeZone: 'UTC' })}</span>`;
+      const mon = new Date(ms).toLocaleDateString('uk', { month: 'short', timeZone: 'UTC' }).replace('.', '');
+      labels += `<span style="left:${w * 15}px">${mon}${showYear ? ` <b>${key.slice(0, 4)}</b>` : ''}</span>`;
     }
     const d = byDay.get(key);
     if (ms > end || ms < first - 6 * DAY_MS) { cells += '<div class="cal-cell off"></div>'; continue; }
