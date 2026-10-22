@@ -25,19 +25,20 @@ iPhone/Mac ──► PWA  https://ewgen15.github.io/whisper/   (GitHub Pages, п
         https://homeserver.tail54ecf6.ts.net   (Tailscale Funnel → публічний!)
                 ▼
    Міні-PC (Ubuntu, Docker, ~/whisper/backend): FastAPI
-      POST /transcribe   faster-whisper small, CPU
-      POST /enrich       GPT-4o-mini → JSON з полями запису
+      POST /transcribe   faster-whisper small, CPU; необов'язкове поле language (uk|en, інакше автовизначення)
+      POST /enrich       edit_level none|light|full: для full спершу gpt-4o править слова за контекстом, потім GPT-4o-mini → JSON з полями запису
       POST /save         entries (Supabase) + sync: documents/embeddings + Notion; зберігає notion_page_id/document_id
       GET  /entries      читання з Supabase
       PATCH  /entries/id редагування (title,text,tags,mood,…) + оновлення Notion-сторінки та embedding
       DELETE /entries/id видалення; Notion-сторінка архівується, documents/embeddings видаляються
+      GET  /stats        дні з настроями й емоційними станами з таблиці documents (для екрана статистики)
       GET  /health       без авторизації
 ```
 
 | Шар | Де | Примітки |
 |---|---|---|
 | Фронтенд | `docs/index.html` | Один файл, vanilla HTML/CSS/JS, без збірки. `docs/` = корінь GitHub Pages. Інших `.md` у `docs/` не клади — вони стануть публічними |
-| Бекенд | `backend/app/` | `main.py` (роути, middleware), `transcription.py`, `enrichment.py` (промпт), `storage.py` (`entries`), `integrations.py` (вектор + Notion) |
+| Бекенд | `backend/app/` | `main.py` (роути, middleware), `transcription.py`, `enrichment.py` (промпт + правка тексту), `storage.py` (`entries`, читання для статистики), `integrations.py` (вектор + Notion), `stats.py` (агрегація по днях), `ratelimit.py` |
 | Тести | `backend/tests/` | Без реальних викликів зовнішніх сервісів |
 | Секрети | `~/whisper/backend/.env` **на сервері** | Ніколи не комітити, не друкувати в чат і не писати в документацію |
 
@@ -88,8 +89,8 @@ docker run --rm -v "$PWD/backend:/app" -w /app python:3.11-slim sh -c \
 ## Дані
 
 **Supabase** — проєкт «Vector AI Store» (`qvhndfdgczdtjxwlfsic`, eu-north-1), спільний з n8n:
-- `entries` — те, що читає застосунок (`storage.py`).
-- `documents` — поля запису як в n8n (`topic`, `type`, `points` = рядок `• a • b`, …).
+- `entries` — те, що читає застосунок у списку (`storage.py`). Зараз там лише записи з застосунку (поки мало), тоді як у `documents` уся історія.
+- `documents` — поля запису як в n8n (`topic`, `type`, `points` = рядок `• a • b`, …). Звідси ж `GET /stats` бере дати й настрої; `created_at` тут без часового поясу (трактуємо як UTC, день рахуємо за Києвом). Для старих записів n8n UTC не перевірено.
 - `embeddings` — `content` (= `documents.text`), `metadata` (topic/tags/type/mood), `embedding vector(1536)`, `document_id`.
 - Модель embedding — **`text-embedding-ada-002`**. Вхідний рядок для вектора збирається в `integrations._embedding_input` у тому самому форматі, що й n8n-вузол («Назва теми: … Теги: … Ключові пункти: …»). **Не змінюй формат**, інакше нові вектори стануть непорівнянними зі старими.
 
@@ -97,6 +98,7 @@ docker run --rm -v "$PWD/backend:/app" -w /app python:3.11-slim sh -c \
 
 ## Промпт розбору (`enrichment.py`)
 
+- Рівень правки (`edit_level`, налаштування у застосунку): `none` — текст лишається як є; `light` — пунктуація й очевидні помилки; `full` — окремий прохід `gpt-4o` (`correct_transcript`) виправляє дивні слова за контекстом, потім `gpt-4o-mini` витягує поля. Сирий транскрипт завжди зберігається в `entries.raw_text`. При збої правки беремо сирий текст.
 - Повертає JSON: `title, text, mood, emotional_state, physical_state, context, project, people, tags, entry_type, time_of_day, points`.
 - `time_of_day` **рахує код** за київським часом, не модель.
 - `project` та `people` — **експериментальні** поля (свідомо без глибокого допрацювання). `people` пишеться лише в Notion «Ім'я контакта».
@@ -108,6 +110,10 @@ docker run --rm -v "$PWD/backend:/app" -w /app python:3.11-slim sh -c \
 - **iOS PWA має власний `localStorage`**, окремий від Safari: backend URL і API-ключ вводяться в налаштуваннях саме в PWA. Без цього — банер «Бекенд недоступний».
 - **iOS ігнорує іконки з manifest** і бере `docs/apple-touch-icon.png`. `icon.svg` — нова біла/`#7B6FA8`; PNG (`apple-touch-icon.png`, `icon-192.png`, `icon-512.png`) **досі старі** (градієнт). Користувач відмовився від генерації PNG скриптами — питай, як оновити.
 - Фон-градієнт на `body`, `html, body { height:100% }`, `.app { height:100vh }`. В iOS PWA layout viewport буває коротшим за екран (793 проти 852 на iPhone з островом) — це давало смужку знизу; її лікує `fitScreenHeight()` в `index.html` (тягне html/body/.app до `screen.height`, коли розрив 20–120pt). Не повертай `100dvh`, фіксований `::before` чи фон на корені — пробували, не працює.
+- **Екран блокується — iOS зупиняє мікрофон.** Під час запису застосунок тримає Screen Wake Lock (`holdScreen`/`releaseScreen`, повторний запит у `visibilitychange`); якщо запис усе ж обірвався, `stopRecording` збирає аудіо з уже отриманих шматків.
+- **Кнопка «Оновити застосунок»** (Діагностика) знімає service worker і кеші та перезавантажує сторінку, не чіпаючи `localStorage`, тобто API-ключ лишається.
+- **Емодзі й кольори настроїв** — не захардкоджені: таблиці `MOOD_LOOK`, `EMO_STATE_LOOK`, `PHYS_STATE_LOOK` у `index.html` шукають за коренем слова (заперечення першими); невідоме значення показується нейтрально. Словник у n8n набагато ширший за новий промпт, тож перевіряй нові слова.
+- **Статистика:** календар настрою (власний CSS-grid, підписи місяців із роком у першому місяці й січнях) + стовпчики по місяцях на Chart.js 4.4.1 з cdnjs, що вантажиться ліниво при першому відкритті екрана.
 - Банер помилки зсуває шапку через `body.has-banner .hdr`; інакше він перекриває кнопку налаштувань.
 - `localStorage['diary_entries']` — кеш-фолбек списку; він маскує проблеми з бекендом, тому для діагностики є панель «Діагностика» в налаштуваннях.
 - Авто-режим/класифікатор може блокувати зовнішні тунелі (`tailscale funnel`) та друк секретів — для цього потрібна явна згода користувача. **Не виводь вміст `.env`** (раніше в чат потрапив `OPENAI_API_KEY`).
