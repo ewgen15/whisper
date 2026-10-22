@@ -107,7 +107,7 @@ docker run --rm -v "$PWD/backend:/app" -w /app python:3.11-slim sh -c \
 - **Chrome Private Network Access:** запити з github.io на Tailscale-адреси вимагають `Access-Control-Allow-Private-Network: true`. Це робить чистий ASGI-middleware `_PNAMiddleware` у `main.py`; `BaseHTTPMiddleware` не бачить preflight-відповідей `CORSMiddleware`.
 - **iOS PWA має власний `localStorage`**, окремий від Safari: backend URL і API-ключ вводяться в налаштуваннях саме в PWA. Без цього — банер «Бекенд недоступний».
 - **iOS ігнорує іконки з manifest** і бере `docs/apple-touch-icon.png`. `icon.svg` — нова біла/`#7B6FA8`; PNG (`apple-touch-icon.png`, `icon-192.png`, `icon-512.png`) **досі старі** (градієнт). Користувач відмовився від генерації PNG скриптами — питай, як оновити.
-- Фон-градієнт задано на `html`, висота `.app` — `100dvh`; не повертай фіксований `body::before` (білі смуги на мобільному).
+- Фон-градієнт на `body`, `html, body { height:100% }`, `.app { height:100vh }`. В iOS PWA layout viewport буває коротшим за екран (793 проти 852 на iPhone з островом) — це давало смужку знизу; її лікує `fitScreenHeight()` в `index.html` (тягне html/body/.app до `screen.height`, коли розрив 20–120pt). Не повертай `100dvh`, фіксований `::before` чи фон на корені — пробували, не працює.
 - Банер помилки зсуває шапку через `body.has-banner .hdr`; інакше він перекриває кнопку налаштувань.
 - `localStorage['diary_entries']` — кеш-фолбек списку; він маскує проблеми з бекендом, тому для діагностики є панель «Діагностика» в налаштуваннях.
 - Авто-режим/класифікатор може блокувати зовнішні тунелі (`tailscale funnel`) та друк секретів — для цього потрібна явна згода користувача. **Не виводь вміст `.env`** (раніше в чат потрапив `OPENAI_API_KEY`).

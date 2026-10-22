@@ -83,7 +83,7 @@ iPhone (Tailscale)
 - [x] Rate limit, docker-збірка в CI, uptime-алерт через GitHub issue
 
 ### Відомі проблеми / борг
-- [ ] Смужка внизу в iOS PWA (viewport 793 проти екрана 852): обхід `fitScreenHeight` у `62ae813`, чекає перевірки на телефоні
+- [x] Смужка внизу в iOS PWA (viewport 793 проти екрана 852): виправлено `fitScreenHeight` (`62ae813`), підтверджено на телефоні
 - [ ] Кеш-фолбек `diary_entries`: локально збережені записи не повністю читаються `normalizeEntry` після перезавантаження
 - [ ] PNG-іконки (`apple-touch-icon.png`, `icon-192/512.png`) досі старі, `icon.svg` новий
 - [ ] Telegram-вхід не перенесений: для повної заміни n8n потрібен webhook `transcribe → enrich → save`
