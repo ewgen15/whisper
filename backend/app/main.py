@@ -1,14 +1,14 @@
 import hmac
 import mimetypes
 import os
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 
-from .enrichment import enrich
+from .enrichment import EDIT_LEVELS, enrich
 from .transcription import transcribe
 from .integrations import sync_entry, update_remote, delete_remote
 from .ratelimit import RateLimiter
@@ -92,6 +92,7 @@ ALLOWED_AUDIO_TYPES = {
 
 class EnrichRequest(BaseModel):
     text: str
+    edit_level: str = "full"
 
 
 class SaveRequest(BaseModel):
@@ -104,7 +105,7 @@ def health():
 
 
 @app.post("/transcribe")
-async def transcribe_audio(file: UploadFile = File(...)):
+async def transcribe_audio(file: UploadFile = File(...), language: str = Form("auto")):
     content_type = file.content_type or ""
     # browsers often send audio/webm;codecs=opus — strip the codecs part
     base_type = content_type.split(";")[0].strip()
@@ -112,9 +113,15 @@ async def transcribe_audio(file: UploadFile = File(...)):
     if base_type not in ALLOWED_AUDIO_TYPES:
         raise HTTPException(status_code=415, detail=f"Unsupported audio type: {content_type}")
 
+    lang = language.strip().lower()
+    if lang in ("", "auto"):
+        lang = None
+    elif lang not in ("uk", "en"):
+        raise HTTPException(status_code=422, detail="language must be auto, uk or en")
+
     suffix = mimetypes.guess_extension(base_type) or ".audio"
     audio_bytes = await file.read()
-    text = transcribe(audio_bytes, suffix=suffix)
+    text = transcribe(audio_bytes, suffix=suffix, language=lang)
     return {"text": text}
 
 
@@ -122,7 +129,9 @@ async def transcribe_audio(file: UploadFile = File(...)):
 async def enrich_text(req: EnrichRequest):
     if not req.text.strip():
         raise HTTPException(status_code=422, detail="Text cannot be empty")
-    result = enrich(req.text)
+    if req.edit_level not in EDIT_LEVELS:
+        raise HTTPException(status_code=422, detail=f"edit_level must be one of {sorted(EDIT_LEVELS)}")
+    result = enrich(req.text, edit_level=req.edit_level)
     return result
 
 

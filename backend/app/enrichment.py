@@ -9,6 +9,16 @@ client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 _TZ = ZoneInfo("Europe/Kyiv")
 
+# How much the model may touch the `text` field. "none" is enforced in code, not by the model.
+EDIT_LEVELS = {
+    "none": "Поле text буде замінено оригінальною транскрипцією; решту полів заповни за змістом.",
+    "light": (
+        "Поле text: лише розстав розділові знаки та великі літери, виправ явні помилки розпізнавання слів "
+        "і розділи на абзаци. Слова-паразити, повтори, порядок і формулювання НЕ чіпай."
+    ),
+    "full": "Поле text: повне редагування за правилами для text вище.",
+}
+
 _SYSTEM_PROMPT = """
 Ти — редактор і аналітик особистого голосового щоденника. Користувач диктує думки українською; Whisper розпізнає мову, тож у тексті бувають слова-паразити, обірвані фрази та помилки розпізнавання імен.
 
@@ -32,6 +42,7 @@ _SYSTEM_PROMPT = """
 <rules>
 - Не вигадуй фактів, імен і подій, яких немає в транскрипції. Якщо ім'я схоже на помилку розпізнавання, залиш як є.
 - Якщо запис дуже короткий, заповни всі поля з того, що є; points можуть мати 1–2 пункти, mood — мінімум 1 тег.
+- Якщо запис англійською, пиши text, title, context, points і tags англійською; поля зі списками (emotional_state, physical_state, entry_type, time_of_day) і mood завжди обирай з українських списків вище.
 - Відповідай ТІЛЬКИ валідним JSON без пояснень і без markdown. Усі перелічені ключі мають бути присутні.
 </rules>
 
@@ -62,7 +73,7 @@ def _time_of_day(hour: int) -> str:
     return "Ніч"
 
 
-def enrich(raw_text: str) -> dict:
+def enrich(raw_text: str, edit_level: str = "full") -> dict:
     now = datetime.now(_TZ)
     response = client.chat.completions.create(
         model="gpt-4o-mini",
@@ -70,6 +81,7 @@ def enrich(raw_text: str) -> dict:
             {"role": "system", "content": _SYSTEM_PROMPT},
             {"role": "user", "content": (
                 f"<recorded_at>{now:%Y-%m-%d %H:%M}</recorded_at>\n"
+                f"<edit_level>{edit_level}: {EDIT_LEVELS[edit_level]}</edit_level>\n"
                 f"<transcript>\n{raw_text}\n</transcript>"
             )},
         ],
@@ -79,6 +91,8 @@ def enrich(raw_text: str) -> dict:
     result = json.loads(response.choices[0].message.content)
     # Deterministic, like the n8n Day_time node — never trust the model with the clock.
     result["time_of_day"] = _time_of_day(now.hour)
+    if edit_level == "none":
+        result["text"] = raw_text.strip()
     if not result.get("mood"):
         result["mood"] = []
     return result

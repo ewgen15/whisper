@@ -13,7 +13,7 @@ def get_model() -> WhisperModel:
     return _model
 
 
-def transcribe(audio_bytes: bytes, suffix: str = ".webm") -> str:
+def transcribe(audio_bytes: bytes, suffix: str = ".webm", language: str | None = None) -> str:
     model = get_model()
 
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
@@ -21,7 +21,7 @@ def transcribe(audio_bytes: bytes, suffix: str = ".webm") -> str:
         tmp_path = f.name
 
     try:
-        segments, _ = model.transcribe(tmp_path, beam_size=5)
+        segments, _ = model.transcribe(tmp_path, beam_size=5, language=language)
         return " ".join(seg.text.strip() for seg in segments)
     finally:
         os.unlink(tmp_path)

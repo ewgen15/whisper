@@ -630,6 +630,9 @@ body.has-banner .hdr {
 @media (prefers-reduced-motion: reduce) {
   .ring, .btn, .rec-bar { animation: none !important; }
 }
+.seg { display:flex; background:rgba(30,16,40,0.05); border-radius:12px; padding:3px; gap:2px; }
+.seg button { flex:1; border:none; background:transparent; border-radius:9px; padding:9px 4px; font-family:'Fixel Text',sans-serif; font-size:0.82rem; color:#1E1028; opacity:0.6; cursor:pointer; }
+.seg button.on { background:#fff; opacity:1; box-shadow:0 1px 3px rgba(30,16,40,0.12); }
 </style>
 
 <!-- ═══════════════ SCREENS ═══════════════ -->
@@ -809,6 +812,24 @@ body.has-banner .hdr {
     <div style="font-size:0.7rem;opacity:0.35;margin-top:6px">Секретний ключ — має збігатись з API_KEY на сервері.</div>
   </div>
 
+  <div style="margin-bottom:16px">
+    <div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.4;margin-bottom:6px">Мова запису</div>
+    <div class="seg" id="segLang">
+      <button data-v="auto" onclick="setPref('lang','auto')">Авто</button>
+      <button data-v="uk" onclick="setPref('lang','uk')">Укр</button>
+      <button data-v="en" onclick="setPref('lang','en')">Eng</button>
+    </div>
+  </div>
+  <div style="margin-bottom:16px">
+    <div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.4;margin-bottom:6px">Редагування тексту</div>
+    <div class="seg" id="segEdit">
+      <button data-v="none" onclick="setPref('edit','none')">Не чіпати</button>
+      <button data-v="light" onclick="setPref('edit','light')">Легке</button>
+      <button data-v="full" onclick="setPref('edit','full')">Повне</button>
+    </div>
+    <div style="font-size:0.7rem;opacity:0.35;margin-top:6px" id="segEditHint"></div>
+  </div>
+
   <div style="margin-bottom:20px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
       <div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.4">Діагностика</div>
@@ -919,7 +940,7 @@ function fitScreenHeight() {
 }
 fitScreenHeight();
 addEventListener('resize', fitScreenHeight);
-const APP_VERSION = '2026-10-22.54d19c';
+const APP_VERSION = '2026-10-22.1aa7ce';
 
 /* ── Error log (last 20, localStorage) ────────────── */
 const ERRLOG_KEY = 'diary_errlog';
@@ -1204,11 +1225,35 @@ function _diagSetRender() {
   }
 }
 
+const PREFS = { lang: ['diary_lang', 'auto', ['auto','uk','en']], edit: ['diary_edit', 'full', ['none','light','full']] };
+const EDIT_HINTS = {
+  none: 'Текст лишається точно як розпізнано.',
+  light: 'Лише розділові знаки, великі літери та явні помилки слів.',
+  full: 'Прибирає слова-паразити й повтори, виправляє помилки розпізнавання.'
+};
+function getPref(name) {
+  const [key, def, allowed] = PREFS[name];
+  try { const v = localStorage.getItem(key); return allowed.includes(v) ? v : def; } catch { return def; }
+}
+function setPref(name, value) {
+  try { localStorage.setItem(PREFS[name][0], value); } catch {}
+  renderPrefs();
+}
+function renderPrefs() {
+  for (const [name, id] of [['lang','segLang'], ['edit','segEdit']]) {
+    const cur = getPref(name);
+    document.querySelectorAll(`#${id} button`).forEach(b => b.classList.toggle('on', b.dataset.v === cur));
+  }
+  const hint = document.getElementById('segEditHint');
+  if (hint) hint.textContent = EDIT_HINTS[getPref('edit')];
+}
+
 function openSettings() {
   document.getElementById('backendInput').value = getBackendUrl();
   document.getElementById('apiKeyInput').value = getApiKey();
   const urlLine = document.getElementById('diagUrlLine');
   if (urlLine) urlLine.textContent = `→ ${getBackendUrl()}`;
+  renderPrefs();
   _diagSetRender();
   _diagSetExtra();
   renderErrLog();
@@ -1550,6 +1595,7 @@ async function transcribeAndEnrich(blob) {
     setStatus('<div class="spinner"></div>', 'Транскрибується…');
     const fd = new FormData();
     fd.append('file', blob, 'recording.webm');
+    fd.append('language', getPref('lang'));
     const tr = await fetch(`${url}/transcribe`, { method:'POST', body: fd, headers: authHeaders() });
     if (!tr.ok) throw new Error(`Transcribe: ${tr.status}`);
     const { text } = await tr.json();
@@ -1558,7 +1604,7 @@ async function transcribeAndEnrich(blob) {
     const en = await fetch(`${url}/enrich`, {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ text })
+      body: JSON.stringify({ text, edit_level: getPref('edit') })
     });
     if (!en.ok) throw new Error(`Enrich: ${en.status}`);
 

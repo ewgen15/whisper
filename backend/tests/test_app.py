@@ -57,3 +57,83 @@ def test_embedding_input_matches_n8n_layout():
         "Проєкт: не вказано. Контекст: Дім. Фізичний стан: Гарний. Емоційний стан: Поганий. "
         "Текст: Текст. Ключові пункти: • раз • два."
     )
+
+
+# ── language and edit level ─────────────────────────────────────────────
+
+def _wav():
+    return {"file": ("r.webm", b"x", "audio/webm")}
+
+
+@pytest.mark.parametrize("sent,expected", [("uk", "uk"), ("en", "en"), ("auto", None), ("", None)])
+def test_transcribe_passes_language(monkeypatch, sent, expected):
+    seen = {}
+
+    def fake(audio, suffix=".webm", language=None):
+        seen["language"] = language
+        return "текст"
+
+    monkeypatch.setattr("app.main.transcribe", fake)
+    r = client.post("/transcribe", files=_wav(), data={"language": sent})
+    assert r.status_code == 200
+    assert seen["language"] == expected
+
+
+def test_transcribe_language_optional_and_validated(monkeypatch):
+    monkeypatch.setattr("app.main.transcribe", lambda a, suffix=".webm", language=None: "ok")
+    assert client.post("/transcribe", files=_wav()).status_code == 200
+    assert client.post("/transcribe", files=_wav(), data={"language": "xx"}).status_code == 422
+
+
+def test_enrich_rejects_unknown_edit_level():
+    r = client.post("/enrich", json={"text": "привіт", "edit_level": "wild"})
+    assert r.status_code == 422
+
+
+def _fake_gpt(content):
+    class Msg:
+        pass
+
+    class Choice:
+        message = Msg()
+
+    Choice.message.content = content
+
+    class Resp:
+        choices = [Choice()]
+
+    seen = {}
+
+    class Completions:
+        def create(self, **kw):
+            seen.update(kw)
+            return Resp()
+
+    class Chat:
+        completions = Completions()
+
+    class Client:
+        chat = Chat()
+
+    return Client(), seen
+
+
+def test_edit_level_none_keeps_transcript_verbatim(monkeypatch):
+    from app import enrichment
+
+    fake, _ = _fake_gpt('{"title":"t","text":"редаговано","mood":[]}')
+    monkeypatch.setattr(enrichment, "client", fake)
+    out = enrichment.enrich("  як є,  ну  типу  ", edit_level="none")
+    assert out["text"] == "як є,  ну  типу"
+    assert out["title"] == "t"
+
+
+def test_edit_level_full_uses_model_text_and_tells_it_the_level(monkeypatch):
+    from app import enrichment
+
+    fake, seen = _fake_gpt('{"title":"t","text":"чисто","mood":["спокійний"]}')
+    monkeypatch.setattr(enrichment, "client", fake)
+    out = enrichment.enrich("ну чисто", edit_level="light")
+    assert out["text"] == "чисто"
+    user = seen["messages"][1]["content"]
+    assert "<edit_level>" in user and "light" in user
