@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'   # same as backend/Dockerfile
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - name: Lint
+        run: ruff check .
+      - name: Tests
+        run: pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Inline scripts are valid JS
+        run: python3 scripts/check-frontend.py
+      - name: Manifest is valid JSON and its icons exist
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          m = json.load(open("docs/manifest.json"))
+          missing = [i["src"] for i in m["icons"] if not os.path.exists(os.path.join("docs", i["src"]))]
+          if missing or not os.path.exists(os.path.join("docs", m["start_url"], "index.html")):
+              sys.exit(f"manifest problem: missing {missing} / start_url")
+          PY
