@@ -18,11 +18,13 @@ iPhone (Tailscale)
                 Tailscale Funnel + X-API-Key → міні PC → Docker
                 ├── POST /transcribe  (faster-whisper)
                 ├── POST /enrich      (OpenAI GPT-4o-mini)
-                ├── POST /save        → Supabase
-                └── GET  /entries     ← Supabase
+                ├── POST /save        → Supabase + Notion + вектор
+                ├── GET  /entries     ← Supabase
+                ├── PATCH/DELETE /entries/{id}  (синхронно з Notion і вектором)
+                └── GET  /health
                           ↓
                     Supabase PostgreSQL
-                    (таблиця entries)
+                    (entries, documents, embeddings)
 ```
 
 ---
@@ -47,6 +49,10 @@ iPhone (Tailscale)
 - [x] Іконка + PWA manifest (встановлюється на Home Screen)
 - [x] Налаштування (backend URL)
 - [x] Fallback на localStorage якщо бекенд недоступний
+- [x] Редагування і видалення запису (bottom sheet, підтвердження)
+- [x] Картка: дата, проєкт, теги, індикатори синхронізації N/V
+- [x] Журнал помилок і розширена діагностика в налаштуваннях
+- [x] Версія застосунку під лого (штамп `stamp-version.py`) і кнопка «Оновити застосунок»
 
 ### Інфраструктура
 - [x] GitHub repo: `ewgen15/whisper` (monorepo: docs/ + backend/)
@@ -63,6 +69,9 @@ iPhone (Tailscale)
 - [x] Tailscale OAuth + SSH keys в GitHub Secrets
 - [x] CI: ruff + pytest + синтаксис фронтенда; деплой залежить від CI
 - [x] Tailscale Funnel + `X-API-Key` (бекенд публічний)
+- [ ] Автодеплой: полагодити Tailscale OAuth-секрети (`TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET`, `tag:ci`); поки деплой — `scripts/deploy.sh`
+- [ ] Branch protection на `main` (обов'язкові перевірки `backend`, `frontend`, `docker`) — потрібен `gh auth login`
+- [ ] Перший запуск `uptime.yml` вручну (Run workflow) і перевірка листа
 
 ### Фаза 3 — Заміна n8n-флоу (код готовий, вмикається прапорцями)
 - [x] `POST /save` записує в Notion (`NOTION_ENABLED`, `NOTION_TOKEN`)
@@ -72,6 +81,13 @@ iPhone (Tailscale)
 - [x] `notion_page_id` і `document_id` зберігаються в `entries`
 - [x] Редагування/видалення запису в застосунку синхронізується з Notion і векторами
 - [x] Rate limit, docker-збірка в CI, uptime-алерт через GitHub issue
+
+### Відомі проблеми / борг
+- [ ] Смужка внизу в iOS PWA (viewport 793 проти екрана 852): обхід `fitScreenHeight` у `62ae813`, чекає перевірки на телефоні
+- [ ] Кеш-фолбек `diary_entries`: локально збережені записи не повністю читаються `normalizeEntry` після перезавантаження
+- [ ] PNG-іконки (`apple-touch-icon.png`, `icon-192/512.png`) досі старі, `icon.svg` новий
+- [ ] Telegram-вхід не перенесений: для повної заміни n8n потрібен webhook `transcribe → enrich → save`
+- [ ] Перевірити на iPhone: редагування, видалення, журнал помилок
 
 ### Фаза 4 — Семантичний пошук
 - [x] Генерувати embeddings після збереження (див. Фазу 3)
