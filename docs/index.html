@@ -158,6 +158,10 @@ body.has-banner .hdr {
   border-radius: 20px;
   background: rgba(30,16,40,0.07);
 }
+.mood-chip.good { background: rgba(70,150,90,0.13);  color: rgba(50,115,65,1); }
+.mood-chip.calm { background: rgba(123,111,168,0.15); color: #5B4F8A; }
+.mood-chip.warn { background: rgba(205,150,40,0.17); color: #8A6416; }
+.mood-chip.bad  { background: rgba(170,90,50,0.13);  color: rgba(140,70,30,1); }
 .card-tags {
   display: flex;
   flex-wrap: wrap;
@@ -559,6 +563,7 @@ body.has-banner .hdr {
 .pill-bad  { background: rgba(170,90,50,0.1);  color: rgba(140,70,30,1); }
 .pill-ok   { background: rgba(30,16,40,0.07);  color: var(--plum); }
 .pill-good { background: rgba(70,150,90,0.1);  color: rgba(50,115,65,1); }
+.pill-warn { background: rgba(205,150,40,0.15); color: #8A6416; }
 
 .divider { height: 1px; background: rgba(30,16,40,0.08); margin: 16px 0; }
 
@@ -940,7 +945,7 @@ function fitScreenHeight() {
 }
 fitScreenHeight();
 addEventListener('resize', fitScreenHeight);
-const APP_VERSION = '2026-10-22.1aa7ce';
+const APP_VERSION = '2026-10-22.27bc6d';
 
 /* ── Error log (last 20, localStorage) ────────────── */
 const ERRLOG_KEY = 'diary_errlog';
@@ -1317,7 +1322,7 @@ function syncDots(e) {
 }
 
 function cardHTML(e) {
-  const moods = e.mood.map(m => `<span class="mood-chip">${esc(m)}</span>`).join('');
+  const moods = e.mood.map(moodChip).join('');
   const tags = (e.tags || []).slice(0, 3).map(t => `<span class="tag-chip">#${esc(t)}</span>`).join('');
   const extra = (e.tags || []).length > 3 ? `<span class="tag-chip">+${e.tags.length - 3}</span>` : '';
   const proj = e.project ? `<span class="proj-chip">${esc(e.project)}</span>` : '';
@@ -1366,22 +1371,49 @@ function openDetail(id) {
   if (renderDetail(id)) showScreen('detail');
 }
 
+/* Emoji + tone per value; matched by stem so "натхнений"/"натхненний" both work */
+const MOOD_LOOK = [
+  [/позитив/, '🙂', 'good'], [/радіс/, '😄', 'good'], [/натхн/, '✨', 'good'], [/підне/, '🚀', 'good'],
+  [/зацікав/, '🤔', 'calm'], [/спокій/, '😌', 'calm'], [/замисл|задум/, '💭', 'calm'],
+  [/рефлекс/, '🪞', 'calm'], [/ностальг|nostalg/, '🕰️', 'calm'],
+  [/невпевн/, '😕', 'warn'], [/невизнач/, '🌫️', 'warn'], [/розгуб/, '😵', 'warn'],
+  [/сумнів/, '🧐', 'warn'], [/втом/, '😴', 'warn'],
+  [/тривож/, '😟', 'bad'], [/роздрат/, '😠', 'bad'], [/розчар/, '😞', 'bad'], [/пригніч|засмуч|сумн/, '😔', 'bad'],
+];
+const EMO_STATE_LOOK = [
+  [/позитив/, '😊', 'good'], [/гарн|хорош/, '😄', 'good'], [/нейтр/, '😐', 'ok'],
+  [/пригніч/, '😔', 'bad'], [/поган/, '😞', 'bad'],
+];
+const PHYS_STATE_LOOK = [
+  [/бадьор/, '⚡', 'good'], [/гарн|хорош/, '💪', 'good'], [/нейтр/, '🚶', 'ok'],
+  [/втомл/, '😴', 'warn'], [/хвор/, '🤒', 'bad'], [/поган/, '🤕', 'bad'],
+];
+function look(table, value, fallbackEmoji) {
+  const v = String(value || '').toLowerCase();
+  const hit = table.find(([re]) => re.test(v));
+  return hit ? { emoji: hit[1], tone: hit[2] } : { emoji: fallbackEmoji, tone: 'ok' };
+}
+function moodChip(m) {
+  const l = look(MOOD_LOOK, m, '');
+  return `<span class="mood-chip ${l.tone === 'ok' ? '' : l.tone}">${l.emoji ? l.emoji + ' ' : ''}${esc(m)}</span>`;
+}
+
 function renderDetail(id) {
   const e = ENTRIES.find(x => x.id === id);
   if (!e) return false;
   currentDetailId = id;
-  const pE = ['Поганий','Пригнічений'].includes(e.emotionalState) ? 'pill-bad' : ['Хороший','Гарний','Позитивний'].includes(e.emotionalState) ? 'pill-good' : 'pill-ok';
-  const pP = e.physicalState  === 'Поганий' ? 'pill-bad' : ['Хороший','Гарний','Бадьорий'].includes(e.physicalState) ? 'pill-good' : 'pill-ok';
+  const lE = look(EMO_STATE_LOOK, e.emotionalState, '💭'), lP = look(PHYS_STATE_LOOK, e.physicalState, '🏃');
+  const pE = 'pill-' + lE.tone, pP = 'pill-' + lP.tone;
   const miniW = Array.from({length:28}, (_,i) =>
     `<div class="mini-bar" style="height:${6+Math.round(Math.sin(i*0.7)*10+Math.random()*12)}px"></div>`).join('');
   document.getElementById('detailBody').innerHTML = `
     <div class="det-eyebrow">${esc(e.entryType)} &nbsp;·&nbsp; ${esc(e.timeOfDay)}</div>
     <div class="det-title">${esc(e.title)}</div>
     <div class="det-pills">
-      <span class="pill ${pE}">😔 ${esc(e.emotionalState)}</span>
-      <span class="pill ${pP}">🏃 ${esc(e.physicalState)}</span>
+      <span class="pill ${pE}">${lE.emoji} ${esc(e.emotionalState)}</span>
+      <span class="pill ${pP}">${lP.emoji} ${esc(e.physicalState)}</span>
     </div>
-    <div class="card-moods" style="margin-bottom:0">${e.mood.map(m=>`<span class="mood-chip">${esc(m)}</span>`).join('')}</div>
+    <div class="card-moods" style="margin-bottom:0">${e.mood.map(moodChip).join('')}</div>
     <div class="divider"></div>
     <div class="det-text">${esc(e.text)}</div>
     ${e.context ? `<div class="det-label">Контекст</div><div class="det-value">${esc(e.context)}</div>` : ''}
