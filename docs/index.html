@@ -1058,8 +1058,8 @@ function renderList(list) {
 function openDetail(id) {
   const e = ENTRIES.find(x => x.id === id);
   if (!e) return;
-  const pE = e.emotionalState === 'Поганий' ? 'pill-bad' : e.emotionalState === 'Хороший' ? 'pill-good' : 'pill-ok';
-  const pP = e.physicalState  === 'Поганий' ? 'pill-bad' : e.physicalState  === 'Хороший' ? 'pill-good' : 'pill-ok';
+  const pE = ['Поганий','Пригнічений'].includes(e.emotionalState) ? 'pill-bad' : ['Хороший','Гарний','Позитивний'].includes(e.emotionalState) ? 'pill-good' : 'pill-ok';
+  const pP = e.physicalState  === 'Поганий' ? 'pill-bad' : ['Хороший','Гарний','Бадьорий'].includes(e.physicalState) ? 'pill-good' : 'pill-ok';
   const miniW = Array.from({length:28}, (_,i) =>
     `<div class="mini-bar" style="height:${6+Math.round(Math.sin(i*0.7)*10+Math.random()*12)}px"></div>`).join('');
   document.getElementById('detailBody').innerHTML = `

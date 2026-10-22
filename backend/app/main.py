@@ -2,12 +2,14 @@ import mimetypes
 import os
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 
 from .enrichment import enrich
 from .transcription import transcribe
+from .integrations import sync_entry
 from .storage import save_entry, get_entries
 
 app = FastAPI(title="Diary Backend", version="0.1.0")
@@ -102,7 +104,8 @@ async def enrich_text(req: EnrichRequest):
 @app.post("/save")
 async def save(req: SaveRequest):
     saved = save_entry(req.entry)
-    return saved
+    sync = await run_in_threadpool(sync_entry, req.entry)
+    return {**saved, "sync": sync} if sync else saved
 
 
 @app.get("/entries")
