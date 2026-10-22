@@ -63,6 +63,46 @@ _SYSTEM_PROMPT = """
 """
 
 
+CORRECTION_MODEL = "gpt-4o"
+
+_CORRECTION_PROMPT = """
+Ти — коректор розпізнаної мови. Whisper часто підставляє слова, схожі за звучанням, але безглузді в контексті («мандель» замість «модель», «їздить токенів» замість «їсть токени»). Твоє завдання — повернути той самий текст, у якому такі слова виправлено за змістом.
+
+Дій у такому порядку:
+1. Прочитай увесь текст і визнач його тему та ситуацію.
+2. Знайди слова й фрази, які не мають сенсу в цій темі, не існують або граматично зламані (неузгоджені відмінки, обірвані слова на кшталт «поїзд іншої модели»).
+3. Для кожної підбери слово чи фразу, що звучать схоже і ПІДХОДЯТЬ за змістом теми та сусідніх речень. Якщо підходящого варіанта немає — залиш як є.
+4. Виправ узгодження відмінків і закінчень, які постраждали від заміни.
+
+Правила:
+- Не змінюй те, що має сенс. Не скорочуй, не узагальнюй, не додавай нічого від себе, не прибирай слова-паразити — зберігай порядок думок і інтонацію від першої особи.
+- Імена людей і власні назви, у яких не впевнений, залиш.
+- Поверни ТІЛЬКИ виправлений текст, без пояснень, лапок і markdown.
+"""
+
+_CORRECTION_EXAMPLE_IN = "Сьогодні тестували нову мандель, вона доволі багато їздить пам'яті. Тому я не зміг запустити її на старому ноутбуці."
+_CORRECTION_EXAMPLE_OUT = "Сьогодні тестували нову модель, вона доволі багато їсть пам'яті. Тому я не зміг запустити її на старому ноутбуці."
+
+
+def correct_transcript(raw_text: str) -> str:
+    """Context-aware fix of misheard words. Falls back to the raw text if the call fails."""
+    try:
+        response = client.chat.completions.create(
+            model=CORRECTION_MODEL,
+            messages=[
+                {"role": "system", "content": _CORRECTION_PROMPT},
+                {"role": "user", "content": _CORRECTION_EXAMPLE_IN},
+                {"role": "assistant", "content": _CORRECTION_EXAMPLE_OUT},
+                {"role": "user", "content": raw_text},
+            ],
+            temperature=0.2,
+        )
+        corrected = (response.choices[0].message.content or "").strip()
+        return corrected or raw_text
+    except Exception:
+        return raw_text
+
+
 def _time_of_day(hour: int) -> str:
     if 5 <= hour <= 11:
         return "Ранок"
@@ -75,6 +115,7 @@ def _time_of_day(hour: int) -> str:
 
 def enrich(raw_text: str, edit_level: str = "full") -> dict:
     now = datetime.now(_TZ)
+    source = correct_transcript(raw_text) if edit_level == "full" else raw_text
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
@@ -82,7 +123,7 @@ def enrich(raw_text: str, edit_level: str = "full") -> dict:
             {"role": "user", "content": (
                 f"<recorded_at>{now:%Y-%m-%d %H:%M}</recorded_at>\n"
                 f"<edit_level>{edit_level}: {EDIT_LEVELS[edit_level]}</edit_level>\n"
-                f"<transcript>\n{raw_text}\n</transcript>"
+                f"<transcript>\n{source}\n</transcript>"
             )},
         ],
         response_format={"type": "json_object"},

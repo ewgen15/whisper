@@ -90,23 +90,28 @@ def test_enrich_rejects_unknown_edit_level():
     assert r.status_code == 422
 
 
-def _fake_gpt(content):
-    class Msg:
-        pass
-
-    class Choice:
-        message = Msg()
-
-    Choice.message.content = content
-
-    class Resp:
-        choices = [Choice()]
-
+def _fake_gpt(*contents):
+    """Each create() call returns the next content; `seen` holds the last call, `calls` all of them."""
     seen = {}
+    calls = []
+    queue = list(contents)
 
     class Completions:
         def create(self, **kw):
+            seen.clear()
             seen.update(kw)
+            calls.append(kw)
+            seen["calls"] = calls
+
+            class Msg:
+                content = queue.pop(0) if len(queue) > 1 else queue[0]
+
+            class Choice:
+                message = Msg()
+
+            class Resp:
+                choices = [Choice()]
+
             return Resp()
 
     class Chat:
@@ -115,6 +120,7 @@ def _fake_gpt(content):
     class Client:
         chat = Chat()
 
+    seen["calls"] = calls
     return Client(), seen
 
 
@@ -137,3 +143,43 @@ def test_edit_level_full_uses_model_text_and_tells_it_the_level(monkeypatch):
     assert out["text"] == "чисто"
     user = seen["messages"][1]["content"]
     assert "<edit_level>" in user and "light" in user
+
+
+def test_full_level_corrects_transcript_first_with_stronger_model(monkeypatch):
+    from app import enrichment
+
+    fake, seen = _fake_gpt("нова модель їсть токени", '{"title":"t","text":"нова модель їсть токени","mood":[]}')
+    monkeypatch.setattr(enrichment, "client", fake)
+    out = enrichment.enrich("нова мандель їздить токенів", edit_level="full")
+    first, second = seen["calls"]
+    assert first["model"] != "gpt-4o-mini"
+    assert "мандель" in first["messages"][1]["content"]
+    assert "нова модель їсть токени" in second["messages"][1]["content"]
+    assert out["text"] == "нова модель їсть токени"
+
+
+def test_correction_failure_falls_back_to_raw_text(monkeypatch):
+    from app import enrichment
+
+    fake, seen = _fake_gpt('{"title":"t","text":"x","mood":[]}')
+
+    def boom(**kw):
+        if kw["model"] == enrichment.CORRECTION_MODEL:
+            raise RuntimeError("openai down")
+        return orig(**kw)
+
+    orig = fake.chat.completions.create
+    fake.chat.completions.create = boom
+    monkeypatch.setattr(enrichment, "client", fake)
+    enrichment.enrich("сирий текст", edit_level="full")
+    assert "сирий текст" in seen["messages"][1]["content"]
+
+
+def test_light_and_none_skip_the_correction_step(monkeypatch):
+    from app import enrichment
+
+    for level in ("light", "none"):
+        fake, seen = _fake_gpt('{"title":"t","text":"x","mood":[]}')
+        monkeypatch.setattr(enrichment, "client", fake)
+        enrichment.enrich("текст", edit_level=level)
+        assert len(seen["calls"]) == 1
