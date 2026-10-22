@@ -107,3 +107,131 @@ def test_sync_entry_noop_when_flags_off(monkeypatch):
     monkeypatch.delenv("VECTOR_ENABLED", raising=False)
     monkeypatch.delenv("NOTION_ENABLED", raising=False)
     assert integrations.sync_entry({}) == {}
+
+
+# --- vector write (documents -> embeddings) -------------------------------
+
+class _FakeTable:
+    def __init__(self, store, name):
+        self.store, self.name = store, name
+
+    def insert(self, row):
+        self.store.append((self.name, row))
+        self._row = row
+        return self
+
+    def execute(self):
+        class R:
+            data = [{"id": "doc-1"}]
+        return R()
+
+
+class _FakeSupabase:
+    def __init__(self):
+        self.inserts = []
+
+    def table(self, name):
+        return _FakeTable(self.inserts, name)
+
+
+class _FakeOpenAI:
+    def __init__(self):
+        self.calls = []
+        outer = self
+
+        class Embeddings:
+            def create(self, model, input):
+                outer.calls.append((model, input))
+
+                class D:
+                    embedding = [0.1, 0.2, 0.3]
+
+                class R:
+                    data = [D()]
+                return R()
+
+        self.embeddings = Embeddings()
+
+
+def test_save_vector_writes_document_then_linked_embedding(monkeypatch):
+    sb, oa = _FakeSupabase(), _FakeOpenAI()
+    monkeypatch.setattr(integrations, "get_client", lambda: sb)
+    monkeypatch.setattr(integrations, "_openai", oa)
+
+    integrations.save_vector({
+        "title": "Тема", "text": "Текст запису", "tags": ["т"], "mood": ["м"],
+        "entry_type": "Подія", "points": ["а", "б"],
+    })
+
+    (t1, doc), (t2, emb) = sb.inserts
+    assert (t1, t2) == ("documents", "embeddings")
+    assert doc["topic"] == "Тема" and doc["points"] == "• а • б"
+    assert emb["document_id"] == "doc-1"
+    assert emb["content"] == "Текст запису"  # content stays plain text, like n8n
+    assert emb["embedding"] == [0.1, 0.2, 0.3]
+    assert emb["metadata"] == {"topic": "Тема", "tags": ["т"], "type": "Подія", "mood": ["м"]}
+    model, sent = oa.calls[0]
+    assert model == "text-embedding-ada-002"
+    assert sent.startswith("Назва теми: Тема.") and "Текст: Текст запису." in sent
+
+
+def test_save_vector_skips_empty_text(monkeypatch):
+    sb = _FakeSupabase()
+    monkeypatch.setattr(integrations, "get_client", lambda: sb)
+    integrations.save_vector({"title": "x", "text": "  "})
+    assert sb.inserts == []
+
+
+# --- /save endpoint --------------------------------------------------------
+
+def test_save_returns_sync_status(monkeypatch):
+    monkeypatch.delenv("API_KEY", raising=False)
+    import app.main as main
+    monkeypatch.setattr(main, "save_entry", lambda e: {"id": 1, "title": e["title"]})
+    monkeypatch.setattr(main, "sync_entry", lambda e: {"vector": "ok", "notion": "error: HTTPStatusError"})
+    r = client.post("/save", json={"entry": {"title": "T"}})
+    assert r.status_code == 200
+    assert r.json() == {"id": 1, "title": "T", "sync": {"vector": "ok", "notion": "error: HTTPStatusError"}}
+
+
+def test_save_has_no_sync_field_when_flags_off(monkeypatch):
+    monkeypatch.delenv("API_KEY", raising=False)
+    import app.main as main
+    monkeypatch.setattr(main, "save_entry", lambda e: {"id": 1})
+    monkeypatch.setattr(main, "sync_entry", lambda e: {})
+    assert client.post("/save", json={"entry": {}}).json() == {"id": 1}
+
+
+# --- enrich post-processing ------------------------------------------------
+
+def test_enrich_overrides_time_of_day_and_defaults_mood(monkeypatch):
+    from app import enrichment
+
+    class Msg:
+        content = '{"title": "T", "time_of_day": "Ніч", "mood": null}'
+
+    class Choice:
+        message = Msg()
+
+    class Resp:
+        choices = [Choice()]
+
+    class Fake:
+        class chat:
+            class completions:
+                @staticmethod
+                def create(**kwargs):
+                    assert "<transcript>" in kwargs["messages"][1]["content"]
+                    return Resp()
+
+    class FakeDT:
+        @staticmethod
+        def now(tz):
+            import datetime
+            return datetime.datetime(2026, 10, 19, 7, 40, tzinfo=tz)
+
+    monkeypatch.setattr(enrichment, "client", Fake)
+    monkeypatch.setattr(enrichment, "datetime", FakeDT)
+    out = enrichment.enrich("щось")
+    assert out["time_of_day"] == "Ранок"  # code decides, not the model
+    assert out["mood"] == []
