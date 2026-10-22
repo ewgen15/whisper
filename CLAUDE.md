@@ -53,6 +53,7 @@ docker run --rm -v "$PWD/backend:/app" -w /app python:3.11-slim sh -c \
   "pip install -q -r requirements-dev.txt && ruff check . && pytest -q -p no:cacheprovider"
 ```
 
+- **Версія фронтенда:** після будь-якої зміни `docs/index.html` запускай `python3 scripts/stamp-version.py` — він пише `APP_VERSION` (дата + хеш вмісту), що видно під лого «Diary» і в Діагностиці. Pre-push і CI (`--check`) падають, якщо штамп застарів.
 - `.githooks/pre-push` запускає швидкі перевірки. Підключення на новій машині: `git config core.hooksPath .githooks`.
 - CI: `.github/workflows/ci.yml` (ruff + pytest на 3.11, синтаксис фронтенда, валідність manifest). `deploy-backend.yml` викликає CI першим кроком (`needs: ci`) — червоний CI = немає деплою.
 - Додаючи бекенд-логіку, додавай тест у `backend/tests/` (зовнішні виклики мокай — фікстури `sb`, `oai`, `notion` у `conftest.py`).

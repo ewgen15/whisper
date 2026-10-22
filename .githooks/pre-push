@@ -4,5 +4,6 @@ set -e
 cd "$(git rev-parse --show-toplevel)"
 python3 -m py_compile backend/app/*.py
 python3 scripts/check-frontend.py >/dev/null
+python3 scripts/stamp-version.py --check
 python3 -c "import json;json.load(open('docs/manifest.json'))"
 echo "pre-push checks passed"

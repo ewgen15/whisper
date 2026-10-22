@@ -51,6 +51,8 @@ jobs:
           node-version: '20'
       - name: Inline scripts are valid JS
         run: python3 scripts/check-frontend.py
+      - name: Version stamp is current
+        run: python3 scripts/stamp-version.py --check
       - name: Manifest is valid JSON and its icons exist
         run: |
           python3 - <<'PY'
