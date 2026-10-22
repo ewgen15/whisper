@@ -817,6 +817,10 @@ body.has-banner .hdr {
         Перевірити
       </button>
     </div>
+    <button onclick="forceUpdate()" id="updBtn"
+      style="width:100%;background:rgba(30,16,40,0.06);border:none;border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:0.78rem;font-family:'Fixel Text',sans-serif;cursor:pointer;opacity:0.8">
+      Оновити застосунок (ключ і налаштування лишаються)
+    </button>
     <div id="diagUrlLine" style="font-size:0.68rem;opacity:0.35;margin-bottom:10px;word-break:break-all"></div>
     <div class="sheet-rows" id="diagRows">
       <div class="sheet-row">
@@ -903,7 +907,7 @@ body.has-banner .hdr {
 </div><!-- /app -->
 
 <script>
-const APP_VERSION = '2026-10-22.da4c98';
+const APP_VERSION = '2026-10-22.a93762';
 
 /* ── Error log (last 20, localStorage) ────────────── */
 const ERRLOG_KEY = 'diary_errlog';
@@ -943,6 +947,18 @@ async function copyErrLog() {
   try { await navigator.clipboard.writeText(errLogText() || 'Порожньо'); btn.textContent = 'Скопійовано ✓'; }
   catch { btn.textContent = 'Не вдалося'; }
   setTimeout(() => { btn.textContent = 'Скопіювати'; }, 1500);
+}
+// Drops HTTP/Cache API copies and reloads with a cache-busting URL; localStorage (API key, backend URL) is untouched
+async function forceUpdate() {
+  const btn = document.getElementById('updBtn');
+  if (btn) btn.textContent = 'Оновлюю…';
+  try {
+    if (navigator.serviceWorker) for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
+    if (window.caches) for (const k of await caches.keys()) await caches.delete(k);
+  } catch {}
+  const u = new URL(location.href);
+  u.searchParams.set('v', Date.now());
+  location.replace(u.toString());
 }
 function clearErrLog() {
   try { localStorage.removeItem(ERRLOG_KEY); } catch {}
