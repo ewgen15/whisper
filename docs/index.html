@@ -919,7 +919,7 @@ function fitScreenHeight() {
 }
 fitScreenHeight();
 addEventListener('resize', fitScreenHeight);
-const APP_VERSION = '2026-10-22.5ee09f';
+const APP_VERSION = '2026-10-22.e174dd';
 
 /* ── Error log (last 20, localStorage) ────────────── */
 const ERRLOG_KEY = 'diary_errlog';
@@ -1457,6 +1457,8 @@ async function startRecording() {
     mediaRecorder = new MediaRecorder(stream);
     audioChunks = [];
     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.onerror = e => logError('mediaRecorder', e.error || 'recorder error');
+    stream.getTracks().forEach(t => { t.onended = () => logError('mic', 'трек мікрофона завершився (iOS перервала запис)'); });
     mediaRecorder.start(100);
   } catch {
     alert('Не вдалося отримати доступ до мікрофону.\nПеревір дозволи в Safari.');
@@ -1495,7 +1497,11 @@ function stopRecording() {
     };
     mediaRecorder.stop();
   } else {
-    showSheet(null);
+    // recorder already stopped by iOS (call, lock, app switch): salvage what was captured
+    const type = (mediaRecorder && mediaRecorder.mimeType) || 'audio/webm';
+    if (mediaRecorder) mediaRecorder.stream.getTracks().forEach(t => t.stop());
+    mediaRecorder = null;
+    showSheet(audioChunks.length ? new Blob(audioChunks, { type }) : null);
   }
 }
 
@@ -1519,7 +1525,7 @@ function showSheet(blob) {
 
 async function transcribeAndEnrich(blob) {
   try {
-    if (!blob) throw new Error('Аудіо недоступне');
+    if (!blob || !blob.size) throw new Error('Аудіо недоступне: iOS зупинила запис (дзвінок, блокування, перемикання застосунку). Запиши ще раз');
     const url = getBackendUrl();
 
     setStatus('<div class="spinner"></div>', 'Транскрибується…');
