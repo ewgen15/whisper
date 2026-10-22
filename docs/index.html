@@ -169,6 +169,26 @@ body.has-banner .hdr {
   border-radius: 20px;
   background: rgba(30,16,40,0.07);
 }
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.proj-chip {
+  font-size: 0.65rem;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: rgba(30,16,40,0.78);
+  color: var(--cream, #fff8f4);
+}
+.tag-chip {
+  font-size: 0.65rem;
+  padding: 1px 7px;
+  border-radius: 20px;
+  border: 1px solid rgba(30,16,40,0.16);
+  opacity: 0.7;
+}
 .card-meta {
   font-size: 0.67rem;
   letter-spacing: 0.02em;
@@ -901,6 +921,7 @@ function normalizeEntry(e) {
     text:           e.text          || '',
     date:           e.date_label    || new Date(e.created_at).toLocaleString('uk', {day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}),
     month:          e.month_label   || '',
+    createdAt:      e.created_at    || null,
   };
 }
 
@@ -1077,12 +1098,29 @@ function buildMiniWave() {
 }
 
 /* ── Render ────────────────────────────────────────── */
+function whenLabel(iso) {
+  const d = iso ? new Date(iso) : null;
+  if (!d || isNaN(d)) return '';
+  const time = d.toLocaleTimeString('uk', { hour: '2-digit', minute: '2-digit' });
+  const day0 = x => new Date(x.getFullYear(), x.getMonth(), x.getDate());
+  const diff = Math.round((day0(new Date()) - day0(d)) / 86400000);
+  if (diff === 0) return `Сьогодні, ${time}`;
+  if (diff === 1) return `Вчора, ${time}`;
+  return `${d.toLocaleDateString('uk', { day: 'numeric', month: 'short' })}, ${time}`;
+}
+
 function cardHTML(e) {
   const moods = e.mood.map(m => `<span class="mood-chip">${esc(m)}</span>`).join('');
+  const tags = (e.tags || []).slice(0, 3).map(t => `<span class="tag-chip">#${esc(t)}</span>`).join('');
+  const extra = (e.tags || []).length > 3 ? `<span class="tag-chip">+${e.tags.length - 3}</span>` : '';
+  const proj = e.project ? `<span class="proj-chip">${esc(e.project)}</span>` : '';
+  const chips = (proj || tags) ? `<div class="card-tags">${proj}${tags}${extra}</div>` : '';
+  const when = whenLabel(e.createdAt) || e.timeOfDay;
   return `<div class="entry-card" onclick="openDetail(${e.id})">
     <div class="card-title">${esc(e.title)}</div>
     <div class="card-moods">${moods}</div>
-    <div class="card-meta">${esc(e.duration)} &nbsp;·&nbsp; ${esc(e.entryType)} &nbsp;·&nbsp; ${esc(e.timeOfDay)}</div>
+    ${chips}
+    <div class="card-meta">${esc(when)} &nbsp;·&nbsp; ${esc(e.duration)} &nbsp;·&nbsp; ${esc(e.entryType)}</div>
   </div>`;
 }
 
