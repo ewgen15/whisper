@@ -70,7 +70,7 @@ docker run --rm -v "$PWD/backend:/app" -w /app python:3.11-slim sh -c \
   Використовуй `down` перед `up`, інакше буває «container name conflict / marked for removal». Те саме робить `scripts/deploy.sh`.
 - **CI-джоби:** `backend`, `frontend`, `docker` (збірка образу + `/health`). Вони мають бути *required checks* у branch protection на `main` (налаштовується в GitHub UI).
 - **Алерт:** `.github/workflows/uptime.yml` кожні 15 хв б'є в `/health`; якщо сервер лежить — відкриває issue `server-down` і падає (GitHub надсилає email), коли оживе — закриває issue.
-- **Rate limit:** `ratelimit.py`, 60 запитів/хв на IP (`RATE_LIMIT_PER_MIN`), `/health` і OPTIONS не лімітуються; 429 і 401 мають CORS-заголовки (порядок middleware у `main.py`: PNA → CORS → RateLimit → ApiKey).
+- **Rate limit:** `ratelimit.py` + `_GuardMiddleware` у `main.py` (ключ і ліміти в одному місці). Правильний ключ: 120 запитів/хв (`RATE_LIMIT_PER_MIN`); неправильний ключ: 10 спроб/хв на клієнта (`FAILED_AUTH_PER_MIN`) окремим лічильником, щоб флуд сторонніх не вичерпав ліміт власника (за Funnel усі можуть мати одну адресу). `/health` і OPTIONS не лімітуються; 401/429 мають CORS-заголовки (порядок: PNA → CORS → Guard).
 - Швидко перевірити код у контейнері без деплою: `cat file.py | ssh … 'docker exec -i backend-diary-backend-1 python -'`.
 
 ## Змінні середовища бекенду (`backend/.env` на сервері)

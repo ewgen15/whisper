@@ -10,6 +10,7 @@ client = TestClient(main.app)
 def _open_api(monkeypatch):
     monkeypatch.delenv("API_KEY", raising=False)
     main.limiter.reset()
+    main.fail_limiter.reset()
 
 
 # --- POST /save ------------------------------------------------------------

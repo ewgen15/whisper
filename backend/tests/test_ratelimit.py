@@ -40,35 +40,57 @@ def test_memory_is_bounded_by_pruning_idle_keys():
 
 # --- wired into the app -------------------------------------------------------
 
-def _client(monkeypatch, limit):
+def _client(monkeypatch, limit=100, fail_limit=100):
     monkeypatch.delenv("API_KEY", raising=False)
     monkeypatch.setattr(main, "limiter", RateLimiter(limit=limit, window=60))
+    monkeypatch.setattr(main, "fail_limiter", RateLimiter(limit=fail_limit, window=60))
     return TestClient(main.app)
 
 
+def _enrich(c, **headers):
+    return c.post("/enrich", json={"text": ""}, headers=headers)  # 422 without touching any service
+
+
 def test_429_after_limit_with_retry_after_and_cors(monkeypatch):
-    c = _client(monkeypatch, 2)
+    c = _client(monkeypatch, limit=2)
     h = {"Origin": "https://ewgen15.github.io"}
-    assert c.post("/enrich", json={"text": ""}, headers=h).status_code == 422
-    assert c.post("/enrich", json={"text": ""}, headers=h).status_code == 422
-    r = c.post("/enrich", json={"text": ""}, headers=h)
+    assert _enrich(c, **h).status_code == 422
+    assert _enrich(c, **h).status_code == 422
+    r = _enrich(c, **h)
     assert r.status_code == 429
     assert int(r.headers["retry-after"]) >= 1
     assert r.headers["access-control-allow-origin"] == "*"  # browser can read the error
 
 
 def test_health_and_preflight_are_never_limited(monkeypatch):
-    c = _client(monkeypatch, 1)
+    c = _client(monkeypatch, limit=1, fail_limit=1)
     for _ in range(5):
         assert c.get("/health").status_code == 200
         assert c.options("/save", headers={"Origin": "https://x", "Access-Control-Request-Method": "POST"}).status_code == 200
 
 
-def test_wrong_keys_are_limited_too_and_401_carries_cors(monkeypatch):
-    c = _client(monkeypatch, 2)
+def test_wrong_keys_are_throttled_and_401_429_carry_cors(monkeypatch):
+    c = _client(monkeypatch, fail_limit=2)
     monkeypatch.setenv("API_KEY", "secret")
     h = {"Origin": "https://x", "X-API-Key": "wrong"}
-    r = c.get("/entries", headers=h)
+    r = _enrich(c, **h)
     assert r.status_code == 401 and r.headers["access-control-allow-origin"] == "*"
-    c.get("/entries", headers=h)
-    assert c.get("/entries", headers=h).status_code == 429  # key guessing is throttled
+    assert _enrich(c, **h).status_code == 401
+    r = _enrich(c, **h)
+    assert r.status_code == 429 and r.headers["access-control-allow-origin"] == "*"  # key guessing is throttled
+
+
+def test_flood_of_bad_requests_does_not_lock_out_the_owner(monkeypatch):
+    c = _client(monkeypatch, fail_limit=1)
+    monkeypatch.setenv("API_KEY", "secret")
+    for _ in range(5):
+        _enrich(c, **{"X-API-Key": "wrong"})
+    assert _enrich(c, **{"X-API-Key": "wrong"}).status_code == 429
+    assert _enrich(c, **{"X-API-Key": "secret"}).status_code == 422  # still served
+
+
+def test_owner_has_its_own_generous_budget(monkeypatch):
+    c = _client(monkeypatch, limit=2)
+    monkeypatch.setenv("API_KEY", "secret")
+    codes = [_enrich(c, **{"X-API-Key": "secret"}).status_code for _ in range(3)]
+    assert codes == [422, 422, 429]

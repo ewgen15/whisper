@@ -40,43 +40,46 @@ class _PNAMiddleware:
         await self.app(scope, receive, send_with_pna)
 
 
-limiter = RateLimiter(limit=int(os.environ.get("RATE_LIMIT_PER_MIN", "60")), window=60)
+limiter = RateLimiter(limit=int(os.environ.get("RATE_LIMIT_PER_MIN", "120")), window=60)
+# Wrong-key attempts are counted separately: behind the Funnel every caller may look like the
+# same client, so a flood of bad requests must never use up the owner's budget.
+fail_limiter = RateLimiter(limit=int(os.environ.get("FAILED_AUTH_PER_MIN", "10")), window=60)
 
 
 def _client_key(request: Request) -> str:
-    # Behind Tailscale Funnel the TCP peer is always the proxy; the last X-Forwarded-For
-    # hop is the address the proxy saw (earlier hops are client-controlled).
+    # Last X-Forwarded-For hop = the address the proxy saw (earlier hops are client-controlled).
     fwd = request.headers.get("x-forwarded-for", "")
     return fwd.split(",")[-1].strip() or (request.client.host if request.client else "unknown")
 
 
-class _RateLimitMiddleware(BaseHTTPMiddleware):
+def _too_many(retry_after: int) -> JSONResponse:
+    return JSONResponse({"detail": "Too many requests"}, status_code=429,
+                        headers={"Retry-After": str(retry_after)})
+
+
+class _GuardMiddleware(BaseHTTPMiddleware):
+    """API key check + rate limiting. OPTIONS and /health are never guarded."""
+
     async def dispatch(self, request: Request, call_next):
         if request.method == "OPTIONS" or request.url.path == "/health":
             return await call_next(request)
-        allowed, retry_after = limiter.hit(_client_key(request))
-        if not allowed:
-            return JSONResponse({"detail": "Too many requests"}, status_code=429,
-                                headers={"Retry-After": str(retry_after)})
-        return await call_next(request)
-
-
-class _ApiKeyMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+        client = _client_key(request)
         expected = os.environ.get("API_KEY", "")
-        # No key configured = open (dev mode). Skip OPTIONS + /health.
-        if expected and request.method != "OPTIONS" and request.url.path != "/health":
+        # No key configured = open (dev mode).
+        if expected:
             given = request.headers.get("x-api-key", "")
             if not hmac.compare_digest(given.encode(), expected.encode()):
-                return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+                allowed, retry = fail_limiter.hit(client)
+                return JSONResponse({"detail": "Unauthorized"}, status_code=401) if allowed else _too_many(retry)
+        allowed, retry = limiter.hit("owner" if expected else client)
+        if not allowed:
+            return _too_many(retry)
         return await call_next(request)
 
 
-# Last added = outermost. Order matters: CORS wraps the guards so 401/429 still carry
-# CORS headers (otherwise the browser reports an opaque network error instead of the status),
-# and the limiter sits before the key check so wrong-key guessing is throttled.
-app.add_middleware(_ApiKeyMiddleware)
-app.add_middleware(_RateLimitMiddleware)
+# Last added = outermost. CORS wraps the guard so 401/429 still carry CORS headers
+# (otherwise the browser reports an opaque network error instead of the status).
+app.add_middleware(_GuardMiddleware)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.add_middleware(_PNAMiddleware)
 
