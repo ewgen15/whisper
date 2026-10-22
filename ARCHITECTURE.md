@@ -1,5 +1,7 @@
 # Архітектура: приватний PWA з домашнім сервером
 
+> Актуальні команди, прапорці, перевірки й підводні камені — у `CLAUDE.md`. Нижче — історія рішень; розділ про Tailscale описує початковий вибір (`serve`), зараз використовується Funnel + `X-API-Key`.
+>
 > Документ для передачі агенту. Описує рішення яке ми побудували і чому саме так.
 > Можна використати як шаблон для схожих проектів.
 
@@ -96,6 +98,8 @@ ewgen15/whisper (GitHub)
 | `OPENAI_API_KEY` | `backend/.env` на міні PC | Вручну по SSH, не в git |
 | `SUPABASE_URL` | `backend/.env` на міні PC | Вручну по SSH |
 | `SUPABASE_KEY` | `backend/.env` на міні PC | Вручну по SSH |
+| `API_KEY` | `backend/.env` + налаштування застосунку | Вручну; заголовок `X-API-Key` |
+| `NOTION_TOKEN` | `backend/.env` на міні PC | Вручну по SSH |
 
 `.env` в `.gitignore` — в GitHub нічого секретного немає.
 
@@ -120,7 +124,7 @@ cd ~/whisper && git pull origin main
 cd backend && docker compose up -d --build
 ```
 
-**TODO:** GitHub Actions для автодеплою backend при push до `backend/**`.
+Автодеплой: `.github/workflows/deploy-backend.yml` (після CI), але може не перебудувати контейнер — див. `CLAUDE.md`.
 
 ---
 

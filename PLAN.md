@@ -15,7 +15,7 @@ iPhone (Tailscale)
   │         GitHub Pages → docs/
   │
   └── Backend: https://homeserver.tail54ecf6.ts.net
-                Tailscale serve → міні PC → Docker
+                Tailscale Funnel + X-API-Key → міні PC → Docker
                 ├── POST /transcribe  (faster-whisper)
                 ├── POST /enrich      (OpenAI GPT-4o-mini)
                 ├── POST /save        → Supabase
@@ -35,7 +35,7 @@ iPhone (Tailscale)
 - [x] `POST /enrich` — GPT-4o-mini: назва, настрій, теги, тип, час доби
 - [x] `POST /save` — зберігає в Supabase
 - [x] `GET /entries` — читає з Supabase
-- [x] Tailscale serve — HTTPS без публічного доступу
+- [x] Tailscale Funnel + API-ключ — HTTPS, публічний, захищений `X-API-Key`
 
 ### PWA (GitHub Pages)
 - [x] Реальний запис голосу (MediaRecorder API)
@@ -59,16 +59,21 @@ iPhone (Tailscale)
 ## Що далі
 
 ### Фаза 2 — CI/CD
-- [ ] GitHub Actions: push до backend/ → auto-deploy на міні PC
-- [ ] Налаштувати Tailscale OAuth + SSH keys в GitHub Secrets
+- [x] GitHub Actions: push до backend/ → auto-deploy на міні PC (ненадійний, див. CLAUDE.md)
+- [x] Tailscale OAuth + SSH keys в GitHub Secrets
+- [x] CI: ruff + pytest + синтаксис фронтенда; деплой залежить від CI
+- [x] Tailscale Funnel + `X-API-Key` (бекенд публічний)
 
-### Фаза 3 — Notion sync
-- [ ] `POST /save` також записує в Notion
-- [ ] Зберігати `notion_page_id` в Supabase
+### Фаза 3 — Заміна n8n-флоу (код готовий, вмикається прапорцями)
+- [x] `POST /save` записує в Notion (`NOTION_ENABLED`, `NOTION_TOKEN`)
+- [x] `POST /save` пише `documents` + `embeddings` ada-002 (`VECTOR_ENABLED`)
+- [ ] Додати `NOTION_TOKEN` і прапорці в `.env` на сервері, перебудувати контейнер, протестувати без дублів з n8n
+- [ ] Вимкнути відповідні кроки в n8n
+- [ ] Зберігати `notion_page_id` в Supabase (потрібна колонка)
 
 ### Фаза 4 — Семантичний пошук
-- [ ] Генерувати embeddings після збереження
-- [ ] Зберігати в Supabase pgvector
+- [x] Генерувати embeddings після збереження (див. Фазу 3)
+- [x] Зберігати в Supabase pgvector
 - [ ] `POST /search` — семантичний пошук по записах
 
 ### Фаза 5 — Native iOS (SwiftUI)
