@@ -536,6 +536,8 @@ body.has-banner .hdr {
 
 #settingsSheet { max-height: 92dvh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .errlog-box { font-family: ui-monospace, Menlo, monospace; font-size: 0.66rem; line-height: 1.45; max-height: 170px; overflow-y: auto; background: rgba(30,16,40,0.05); border-radius: 10px; padding: 8px 10px; white-space: pre-wrap; word-break: break-word; margin-top: 8px; }
+.det-tech { margin-top: 18px; font-size: 0.72rem; opacity: 0.55; }
+.det-tech summary { cursor: pointer; padding: 6px 0; }
 .mini-btn { background: rgba(30,16,40,0.06); border: none; border-radius: 8px; padding: 6px 12px; font-size: 0.72rem; font-family: 'Fixel Text', sans-serif; color: inherit; cursor: pointer; }
 
 /* ── Detail screen ────────────────────────────────── */
@@ -856,6 +858,36 @@ body.has-banner .hdr {
         </div>
         <div id="di-render-badge" class="diag-badge"></div>
       </div>
+      <div class="sheet-row">
+        <div class="row-icon" id="di-key-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(30,16,40,0.4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2L21 2M16 7l3 3"/></svg>
+        </div>
+        <div style="flex:1">
+          <div class="row-label">Ключ API</div>
+          <div id="di-key" style="font-size:0.72rem;opacity:0.4;margin-top:1px">—</div>
+        </div>
+        <div id="di-key-badge" class="diag-badge"></div>
+      </div>
+      <div class="sheet-row">
+        <div class="row-icon" id="di-sync-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(30,16,40,0.4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5M3 21v-5h5"/></svg>
+        </div>
+        <div style="flex:1">
+          <div class="row-label">Синхронізація</div>
+          <div id="di-sync" style="font-size:0.72rem;opacity:0.4;margin-top:1px">—</div>
+        </div>
+        <div id="di-sync-badge" class="diag-badge"></div>
+      </div>
+      <div class="sheet-row">
+        <div class="row-icon" id="di-ver-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(30,16,40,0.4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+        </div>
+        <div style="flex:1">
+          <div class="row-label">Версія</div>
+          <div id="di-ver" style="font-size:0.72rem;opacity:0.4;margin-top:1px">—</div>
+        </div>
+        <div id="di-ver-badge" class="diag-badge"></div>
+      </div>
     </div>
   </div>
 
@@ -880,6 +912,8 @@ body.has-banner .hdr {
 </div><!-- /app -->
 
 <script>
+const APP_VERSION = '2026-10-22';
+
 /* ── Error log (last 20, localStorage) ────────────── */
 const ERRLOG_KEY = 'diary_errlog';
 function readErrLog() {
@@ -1066,40 +1100,68 @@ function goBack() {
 }
 
 /* ── Settings ──────────────────────────────────────── */
+function cachedCount() {
+  try { return JSON.parse(localStorage.getItem('diary_entries') || '[]').length; } catch { return 0; }
+}
+function cacheSizeKB() {
+  try { return Math.round(((localStorage.getItem('diary_entries') || '').length * 2) / 1024); } catch { return 0; }
+}
+
 async function runDiagnostics() {
   const base = getBackendUrl();
   const urlLine = document.getElementById('diagUrlLine');
   if (urlLine) urlLine.textContent = `→ ${base}`;
-  const checks = [
-    { key: 'health',   url: `${base}/health`,  label: d => d.status === 'ok' ? 'OK' : d.status },
-    { key: 'entries',  url: `${base}/entries`, label: d => `${d.length} записів` },
-  ];
-
-  // reset
-  checks.forEach(c => {
-    _diagSet(c.key, '…', '', 'rgba(30,16,40,0.4)', '');
-  });
-  // render check — can we display entries at all?
+  ['health', 'key', 'entries'].forEach(k => _diagSet(k, '…', '', 'rgba(30,16,40,0.4)', ''));
   _diagSetRender();
+  _diagSetExtra();
 
-  for (const c of checks) {
+  const probe = async url => {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 9000);
+    const t0 = performance.now();
     try {
-      const res = await fetch(c.url, { signal: ctrl.signal, headers: authHeaders() });
-      clearTimeout(t);
-      if (res.ok) {
-        const data = await res.json();
-        _diagSet(c.key, c.label(data), 'ok', '#2D7A48', '200');
-      } else {
-        _diagSet(c.key, `HTTP ${res.status}`, 'err', '#A33030', `${res.status}`);
-      }
-    } catch(e) {
-      clearTimeout(t);
-      const msg = e.name === 'AbortError' ? 'Timeout' : (e.message || 'Недоступний');
-      _diagSet(c.key, msg, 'err', '#A33030', '✗');
-    }
+      const res = await fetch(url, { signal: ctrl.signal, headers: authHeaders() });
+      return { res, ms: Math.round(performance.now() - t0) };
+    } catch (e) {
+      return { err: e.name === 'AbortError' ? 'Timeout' : (e.message || 'Недоступний') };
+    } finally { clearTimeout(t); }
+  };
+  const fail = (key, r) => {
+    logError(`diagnostics ${key}`, r.err || `HTTP ${r.res.status}`);
+    _diagSet(key, r.err || `HTTP ${r.res.status}`, 'err', '#A33030', r.err ? '✗' : `${r.res.status}`);
+  };
+
+  const h = await probe(`${base}/health`);
+  if (h.res && h.res.ok) _diagSet('health', `OK · ${h.ms} мс`, 'ok', '#2D7A48', '200');
+  else fail('health', h);
+
+  // /health is public, so the key can only be checked against a protected route
+  const e = await probe(`${base}/entries`);
+  if (e.res && (e.res.status === 401 || e.res.status === 403)) {
+    _diagSet('key', 'Ключ не підходить', 'err', '#A33030', `${e.res.status}`);
+    _diagSet('entries', 'Немає доступу', 'err', '#A33030', `${e.res.status}`);
+    logError('diagnostics key', `HTTP ${e.res.status}`);
+    return;
   }
+  if (e.res && e.res.ok) {
+    _diagSet('key', getApiKey() ? 'Ключ прийнято' : 'Сервер без ключа', 'ok', '#2D7A48', '✓');
+    try {
+      const data = await e.res.json();
+      _diagSet('entries', `${data.length} із сервера · ${cachedCount()} у локальному кеші`, 'ok', '#2D7A48', '200');
+    } catch (err) { _diagSet('entries', 'Некоректна відповідь', 'err', '#A33030', '✗'); logError('diagnostics entries', err); }
+  } else {
+    _diagSet('key', 'Не перевірено', '', 'rgba(30,16,40,0.4)', '—');
+    fail('entries', e);
+  }
+}
+
+// Sync coverage from the already loaded list; no network.
+function _diagSetExtra() {
+  const n = ENTRIES.length;
+  const nt = ENTRIES.filter(x => x.notionId).length, vec = ENTRIES.filter(x => x.docId).length;
+  if (n) _diagSet('sync', `Notion ${nt}/${n} · Вектор ${vec}/${n}`, nt === n && vec === n ? 'ok' : '', nt === n && vec === n ? '#2D7A48' : 'rgba(30,16,40,0.7)', '');
+  else _diagSet('sync', 'немає записів', '', 'rgba(30,16,40,0.4)', '—');
+  _diagSet('ver', `${APP_VERSION} · кеш ${cacheSizeKB()} КБ`, '', 'rgba(30,16,40,0.7)', '');
 }
 
 function _diagSet(key, sub, state, color, badge) {
@@ -1129,6 +1191,7 @@ function openSettings() {
   const urlLine = document.getElementById('diagUrlLine');
   if (urlLine) urlLine.textContent = `→ ${getBackendUrl()}`;
   _diagSetRender();
+  _diagSetExtra();
   renderErrLog();
   document.getElementById('settingsOverlay').classList.add('on');
   document.getElementById('settingsSheet').classList.add('up');
@@ -1264,7 +1327,14 @@ function renderDetail(id) {
       <div class="mini-bars" style="height:24px">${miniW}</div>
       <span class="sheet-dur">${esc(e.duration)}</span>
     </div>
-    <div class="det-date">${esc(e.date)}</div>`;
+    <div class="det-date">${esc(e.date)}</div>
+    <details class="det-tech"><summary>Технічні дані</summary>
+      <div class="errlog-box">id: ${esc(e.id)}
+notion_page_id: ${esc(e.notionId || '—')}
+document_id: ${esc(e.docId || '—')}
+довжина тексту: ${e.text.length}
+created_at: ${esc(e.createdAt || '—')}${e.local ? '\nтільки на пристрої' : ''}</div>
+    </details>`;
   return true;
 }
 
