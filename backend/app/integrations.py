@@ -22,6 +22,29 @@ def _points_text(points) -> str:
     return " ".join(f"• {p}" for p in points or [])
 
 
+def _embedding_input(entry: dict) -> str:
+    """Same string layout as the n8n embedding node, so old and new vectors stay comparable."""
+    def val(v):
+        return v or "не вказано"
+
+    def joined(v):
+        return ", ".join(v) if v else "не вказано"
+
+    return (
+        f"Назва теми: {val(entry.get('title'))}. "
+        f"Теги: {joined(entry.get('tags'))}. "
+        f"Тип запису: {val(entry.get('entry_type'))}. "
+        f"Час доби: {val(entry.get('time_of_day'))}. "
+        f"Настрій: {joined(entry.get('mood'))}. "
+        f"Проєкт: {val(entry.get('project'))}. "
+        f"Контекст: {val(entry.get('context'))}. "
+        f"Фізичний стан: {val(entry.get('physical_state'))}. "
+        f"Емоційний стан: {val(entry.get('emotional_state'))}. "
+        f"Текст: {val(entry.get('text'))}. "
+        f"Ключові пункти: {val(_points_text(entry.get('points')))}."
+    )
+
+
 def save_vector(entry: dict) -> None:
     """Mirrors the n8n flow: documents row + embeddings row (ada-002 over the text)."""
     global _openai
@@ -47,7 +70,7 @@ def save_vector(entry: dict) -> None:
     }).execute()
     doc_id = doc.data[0]["id"]
 
-    vector = _openai.embeddings.create(model=EMBEDDING_MODEL, input=text).data[0].embedding
+    vector = _openai.embeddings.create(model=EMBEDDING_MODEL, input=_embedding_input(entry)).data[0].embedding
     sb.table("embeddings").insert({
         "content":     text,
         "metadata":    {
