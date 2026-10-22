@@ -26,6 +26,16 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html {
   height: 100%;
+  background: #E080B0;
+}
+
+/* Фон на фіксованому шарі: покриває весь екран разом із safe-area (iOS PWA) */
+html::before {
+  content: '';
+  position: fixed;
+  top: -60px; right: 0; bottom: -120px; left: 0;
+  z-index: -1;
+  pointer-events: none;
   background:
     radial-gradient(ellipse at 18% 12%, #FFCBA4 0%, transparent 52%),
     radial-gradient(ellipse at 82% 88%, #B868D8 0%, transparent 52%),
