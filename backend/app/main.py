@@ -12,7 +12,10 @@ from .enrichment import EDIT_LEVELS, enrich
 from .transcription import transcribe
 from .integrations import sync_entry, update_remote, delete_remote
 from .ratelimit import RateLimiter
-from .storage import save_entry, get_entries, get_entry, update_entry, delete_entry, set_entry_links
+from .stats import build_stats
+from .storage import (
+    delete_entry, get_entries, get_entry, get_stats_rows, save_entry, set_entry_links, update_entry,
+)
 
 app = FastAPI(title="Diary Backend", version="0.1.0")
 
@@ -148,6 +151,11 @@ async def save(req: SaveRequest):
 @app.get("/entries")
 async def entries(limit: int = 50):
     return get_entries(limit=limit)
+
+
+@app.get("/stats")
+async def stats():
+    return build_stats(await run_in_threadpool(get_stats_rows))
 
 
 # Columns the client may edit; ids, links and timestamps are never writable.

@@ -638,6 +638,25 @@ body.has-banner .hdr {
 .seg { display:flex; background:rgba(30,16,40,0.05); border-radius:12px; padding:3px; gap:2px; }
 .seg button { flex:1; border:none; background:transparent; border-radius:9px; padding:9px 4px; font-family:'Fixel Text',sans-serif; font-size:0.82rem; color:#1E1028; opacity:0.6; cursor:pointer; }
 .seg button.on { background:#fff; opacity:1; box-shadow:0 1px 3px rgba(30,16,40,0.12); }
+.st-card { background:rgba(255,255,255,0.5); border-radius:16px; padding:14px; margin-bottom:14px; }
+.st-title { font-size:0.7rem; letter-spacing:0.1em; text-transform:uppercase; opacity:0.5; margin-bottom:10px; }
+.st-msg { font-size:0.85rem; opacity:0.6; padding:24px 4px; text-align:center; }
+.st-sum { display:flex; gap:8px; margin-bottom:14px; }
+.st-sum div { flex:1; background:rgba(255,255,255,0.5); border-radius:14px; padding:10px 8px; text-align:center; }
+.st-sum b { display:block; font-size:1.25rem; font-weight:500; }
+.st-sum span { font-size:0.65rem; opacity:0.55; }
+.cal-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; padding-bottom:4px; }
+.cal-scroll::-webkit-scrollbar { display:none; }
+.cal-months { position:relative; height:14px; font-size:0.62rem; opacity:0.5; }
+.cal-months span { position:absolute; top:0; white-space:nowrap; }
+.cal-grid { display:grid; grid-auto-flow:column; grid-template-rows:repeat(7,12px); grid-auto-columns:12px; gap:3px; margin-top:4px; }
+.cal-cell { border-radius:3px; background:rgba(30,16,40,0.06); }
+.cal-cell.sel { outline:2px solid var(--plum); outline-offset:1px; }
+.cal-cell.off { background:transparent; }
+.cal-info { font-size:0.75rem; min-height:2.4em; margin-top:8px; opacity:0.75; }
+.cal-legend { display:flex; flex-wrap:wrap; gap:4px 12px; font-size:0.65rem; opacity:0.65; margin-top:6px; }
+.cal-legend i { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:4px; vertical-align:-1px; }
+.st-chart { position:relative; height:220px; }
 </style>
 
 <!-- ═══════════════ SCREENS ═══════════════ -->
@@ -648,11 +667,16 @@ body.has-banner .hdr {
 <div class="screen active" id="home">
   <div class="hdr">
     <span class="hdr-logo">Diary<span class="app-ver" id="appVer"></span></span>
+<div style="display:flex;gap:8px">
+    <button onclick="openStats()" style="background:rgba(255,255,255,.52);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:none;cursor:pointer;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0" aria-label="Статистика">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--plum)"><rect x="3" y="12" width="4" height="9" rx="1.2"/><rect x="10" y="6" width="4" height="15" rx="1.2"/><rect x="17" y="9" width="4" height="12" rx="1.2"/></svg>
+    </button>
     <button onclick="openSettings()" style="background:rgba(255,255,255,.52);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:none;cursor:pointer;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0" aria-label="Налаштування">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--plum)">
         <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.92c.04-.34.07-.68.07-1.08s-.03-.74-.07-1.08l2.32-1.82c.21-.16.27-.45.13-.69l-2.2-3.82c-.13-.24-.42-.32-.66-.24l-2.74 1.1c-.57-.44-1.18-.8-1.86-1.06L14.05 1.5c-.05-.27-.29-.5-.59-.5h-4.4c-.3 0-.54.23-.59.5L8 4.09c-.68.26-1.29.62-1.86 1.06L3.4 4.05c-.24-.08-.53 0-.66.24L.54 8.11c-.14.24-.08.53.13.69l2.32 1.82c-.04.34-.07.68-.07 1.08s.03.74.07 1.08L.67 14.6c-.21.16-.27.45-.13.69l2.2 3.82c.13.24.42.32.66.24l2.74-1.1c.57.44 1.18.8 1.86 1.06l.47 2.59c.05.27.29.5.59.5h4.4c.3 0 .54-.23.59-.5l.47-2.59c.68-.26 1.29-.62 1.86-1.06l2.74 1.1c.24.08.53 0 .66-.24l2.2-3.82c.14-.24.08-.53-.13-.69l-2.32-1.82z"/>
       </svg>
     </button>
+    </div>
   </div>
   <div class="home-scroll" id="homeScroll">
     <div id="homeEntries"></div>
@@ -701,6 +725,18 @@ body.has-banner .hdr {
   </div>
   <div class="filters" id="filterRow"></div>
   <div class="list-scroll" id="listEntries"></div>
+</div>
+
+<div class="screen" id="stats">
+  <div class="hdr">
+    <button class="hdr-back" onclick="goBack()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Назад
+    </button>
+    <span class="hdr-title-center">Статистика</span>
+    <span style="width:52px"></span>
+  </div>
+  <div class="list-scroll" id="statsBody"><div class="st-msg">Завантаження…</div></div>
 </div>
 
 <!-- Fixed record button -->
@@ -945,7 +981,7 @@ function fitScreenHeight() {
 }
 fitScreenHeight();
 addEventListener('resize', fitScreenHeight);
-const APP_VERSION = '2026-10-22.27bc6d';
+const APP_VERSION = '2026-10-22.bebf6b';
 
 /* ── Error log (last 20, localStorage) ────────────── */
 const ERRLOG_KEY = 'diary_errlog';
@@ -1227,6 +1263,155 @@ function _diagSetRender() {
     _diagSet('render', `${count} в ENTRIES[]`, 'ok', '#2D7A48', '✓');
   } else {
     _diagSet('render', 'не запускався', '', 'rgba(30,16,40,0.4)', '—');
+  }
+}
+
+/* ── Statistics ────────────────────────────────────── */
+const TONE_RGB = { good:'70,150,90', calm:'123,111,168', warn:'205,150,40', bad:'190,95,55', none:'30,16,40' };
+const TONE_NAME = { good:'світлі', calm:'спокійні', warn:'невпевнені', bad:'важкі', none:'без настрою' };
+let STATS = null, statsChart = null;
+
+async function openStats() {
+  showScreen('stats');
+  if (!STATS) await loadStats();
+}
+async function loadStats() {
+  const body = document.getElementById('statsBody');
+  body.innerHTML = '<div class="st-msg">Завантаження…</div>';
+  try {
+    const r = await fetch(`${getBackendUrl()}/stats`, { headers: authHeaders() });
+    if (!r.ok) throw new Error(`Stats: ${r.status}`);
+    STATS = await r.json();
+    renderStats();
+  } catch (err) {
+    logError('loadStats', err);
+    body.innerHTML = `<div class="st-msg">Не вдалося завантажити статистику<br>${esc(err.message || '')}<br><br><button class="mini-btn" onclick="loadStats()">Спробувати ще</button></div>`;
+  }
+}
+function dayTone(d) {
+  const tally = {};
+  for (const m of d.mood) { const t = look(MOOD_LOOK, m, '').tone; if (t !== 'ok') tally[t] = (tally[t] || 0) + 1; }
+  if (!Object.keys(tally).length) {
+    for (const e of d.emo) { const t = look(EMO_STATE_LOOK, e, '').tone; if (t !== 'ok') tally[t] = (tally[t] || 0) + 1; }
+  }
+  const best = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+  return best ? best[0] : 'none';
+}
+const utcDay = s => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+const DAY_MS = 86400000;
+const dayLabel = ms => new Date(ms).toLocaleDateString('uk', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+function renderStats() {
+  const body = document.getElementById('statsBody');
+  const days = STATS.days;
+  if (!days.length) { body.innerHTML = '<div class="st-msg">Поки немає записів</div>'; return; }
+
+  const byDay = new Map(days.map(d => [d.d, d]));
+  const first = utcDay(days[0].d);
+  const last = utcDay(days[days.length - 1].d);
+  const today = utcDay(new Date().toLocaleDateString('sv', { timeZone: 'Europe/Kyiv' }));
+  const end = Math.max(last, today);
+  const dow = ms => (new Date(ms).getUTCDay() + 6) % 7;
+  const start = first - dow(first) * DAY_MS;
+
+  let cells = '', labels = '', week = 0, lastMonth = '';
+  for (let ms = start; ms <= end + (6 - dow(end)) * DAY_MS; ms += DAY_MS) {
+    const key = new Date(ms).toISOString().slice(0, 10);
+    const w = Math.floor((ms - start) / (7 * DAY_MS));
+    if (dow(ms) === 0 && key.slice(0, 7) !== lastMonth && ms >= first - 6 * DAY_MS) {
+      lastMonth = key.slice(0, 7);
+      labels += `<span style="left:${w * 15}px">${new Date(ms).toLocaleDateString('uk', { month: 'short', timeZone: 'UTC' })}</span>`;
+    }
+    const d = byDay.get(key);
+    if (ms > end || ms < first - 6 * DAY_MS) { cells += '<div class="cal-cell off"></div>'; continue; }
+    if (!d) { cells += `<div class="cal-cell" data-d="${key}"></div>`; continue; }
+    const alpha = d.n >= 3 ? 1 : d.n === 2 ? 0.78 : 0.58;
+    cells += `<div class="cal-cell" data-d="${key}" style="background:rgba(${TONE_RGB[dayTone(d)]},${alpha})"></div>`;
+  }
+  const weeks = Math.ceil(((end + (6 - dow(end)) * DAY_MS) - start + DAY_MS) / (7 * DAY_MS));
+
+  const moodCount = {};
+  days.forEach(d => d.mood.forEach(m => { moodCount[m] = (moodCount[m] || 0) + 1; }));
+  const topMood = Object.entries(moodCount).sort((a, b) => b[1] - a[1])[0];
+
+  const legend = ['good', 'calm', 'warn', 'bad', 'none'].map(t =>
+    `<span><i style="background:rgba(${TONE_RGB[t]},0.8)"></i>${TONE_NAME[t]}</span>`).join('');
+
+  body.innerHTML = `
+    <div class="st-sum">
+      <div><b>${STATS.total}</b><span>записів</span></div>
+      <div><b>${days.length}</b><span>днів із записами</span></div>
+      <div><b>${topMood ? moodChip(topMood[0]) : '—'}</b><span>найчастіший настрій</span></div>
+    </div>
+    <div class="st-card">
+      <div class="st-title">Настрій по днях</div>
+      <div class="cal-scroll" id="calScroll">
+        <div style="width:${weeks * 15}px">
+          <div class="cal-months">${labels}</div>
+          <div class="cal-grid" id="calGrid">${cells}</div>
+        </div>
+      </div>
+      <div class="cal-info" id="calInfo">Торкнись дня, щоб побачити деталі</div>
+      <div class="cal-legend">${legend}</div>
+    </div>
+    <div class="st-card">
+      <div class="st-title">Емоційний стан по місяцях</div>
+      <div class="st-chart"><canvas id="statsChart"></canvas></div>
+    </div>`;
+
+  const scroller = document.getElementById('calScroll');
+  scroller.scrollLeft = scroller.scrollWidth;
+  document.getElementById('calGrid').onclick = ev => {
+    const c = ev.target.closest('.cal-cell[data-d]');
+    if (!c) return;
+    document.querySelectorAll('.cal-cell.sel').forEach(x => x.classList.remove('sel'));
+    c.classList.add('sel');
+    const d = byDay.get(c.dataset.d);
+    const info = document.getElementById('calInfo');
+    info.textContent = '';
+    if (!d) { info.textContent = `${dayLabel(utcDay(c.dataset.d))} · без записів`; return; }
+    info.innerHTML = `${dayLabel(utcDay(d.d))} · ${d.n} ${d.n === 1 ? 'запис' : d.n < 5 ? 'записи' : 'записів'}<br>${[...new Set(d.mood)].slice(0, 6).map(moodChip).join(' ')}`;
+  };
+  drawMonthChart(days);
+}
+
+function loadChartJs() {
+  if (window.Chart) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
+    sc.onload = resolve;
+    sc.onerror = () => reject(new Error('Chart.js не завантажився (потрібен інтернет)'));
+    document.head.appendChild(sc);
+  });
+}
+async function drawMonthChart(days) {
+  const months = {};
+  for (const d of days) {
+    const m = months[d.d.slice(0, 7)] ||= { good: 0, ok: 0, bad: 0 };
+    d.emo.forEach(e => { const t = look(EMO_STATE_LOOK, e, '').tone; if (t in m) m[t]++; });
+  }
+  const keys = Object.keys(months).sort();
+  const label = k => new Date(Date.UTC(+k.slice(0, 4), +k.slice(5) - 1, 1)).toLocaleDateString('uk', { month: 'short', year: '2-digit', timeZone: 'UTC' });
+  try {
+    await loadChartJs();
+    if (statsChart) statsChart.destroy();
+    const ds = (name, tone, rgb) => ({ label: name, data: keys.map(k => months[k][tone]), backgroundColor: `rgba(${rgb},0.8)`, borderRadius: 3 });
+    statsChart = new Chart(document.getElementById('statsChart'), {
+      type: 'bar',
+      data: { labels: keys.map(label), datasets: [
+        ds('Позитивний', 'good', TONE_RGB.good), ds('Нейтральний', 'ok', '150,140,165'), ds('Поганий', 'bad', TONE_RGB.bad)
+      ] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: { x: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true } },
+                  y: { stacked: true, beginAtZero: true, ticks: { precision: 0, font: { size: 10 } } } },
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } }
+      }
+    });
+  } catch (err) {
+    logError('statsChart', err);
+    document.querySelector('.st-chart').innerHTML = `<div class="st-msg">${esc(err.message)}</div>`;
   }
 }
 

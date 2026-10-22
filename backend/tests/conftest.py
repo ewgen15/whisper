@@ -38,6 +38,12 @@ class FakeSupabase:
                 self.op, self.payload = "select", cols
                 return self
 
+            def order(self, *a, **kw):
+                return self
+
+            def range(self, *a):
+                return self
+
             def eq(self, col, val):
                 self.filters.append((col, val))
                 return self
