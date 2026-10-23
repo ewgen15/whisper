@@ -996,7 +996,7 @@ function fitScreenHeight() {
 }
 fitScreenHeight();
 addEventListener('resize', fitScreenHeight);
-const APP_VERSION = '2026-10-22.8e4733';
+const APP_VERSION = '2026-10-23.344d78';
 
 /* ── Error log (last 20, localStorage) ────────────── */
 const ERRLOG_KEY = 'diary_errlog';
@@ -1754,6 +1754,66 @@ function filterEntries() {
   renderList(list);
 }
 
+/* ── Audio draft (IndexedDB) ───────────────────────── */
+// Audio is persisted while recording and kept until the entry is saved or discarded,
+// so a failed upload, a killed PWA or a lock screen never loses a dictation.
+// IndexedDB, not localStorage: audio is binary and would blow the ~5 MB string quota.
+let _draftDb = null;
+function draftDb() {
+  if (!_draftDb) {
+    _draftDb = new Promise((resolve, reject) => {
+      const req = indexedDB.open('whisper-draft', 1);
+      req.onupgradeneeded = () => {
+        req.result.createObjectStore('chunks', { autoIncrement: true });
+        req.result.createObjectStore('meta');
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  return _draftDb;
+}
+async function draftTx(stores, mode, fn) {
+  const db = await draftDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(stores, mode);
+    const out = fn(tx);
+    tx.oncomplete = () => resolve(out && 'result' in out ? out.result : undefined);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+}
+function draftGuard(p) { return p.catch(e => { logError('draft', e); }); }
+const draftStart  = mime => draftGuard(draftTx(['chunks', 'meta'], 'readwrite', tx => {
+  tx.objectStore('chunks').clear();
+  tx.objectStore('meta').put({ mime, elapsed: 0 }, 'cur');
+}));
+// ArrayBuffers, not Blobs: Safari has lost Blobs stored in IndexedDB (private mode, purged backing files)
+const draftAppend = blob => draftGuard(blob.arrayBuffer().then(buf =>
+  draftTx(['chunks'], 'readwrite', tx => { tx.objectStore('chunks').add(buf); })));
+const draftElapsed = s => draftGuard(draftTx(['meta'], 'readwrite', tx => {
+  const st = tx.objectStore('meta'), r = st.get('cur');
+  r.onsuccess = () => { if (r.result) st.put({ ...r.result, elapsed: s }, 'cur'); };
+}));
+const draftClear  = () => draftGuard(draftTx(['chunks', 'meta'], 'readwrite', tx => {
+  tx.objectStore('chunks').clear();
+  tx.objectStore('meta').clear();
+}));
+async function draftLoad() {
+  try {
+    const [chunks, meta] = await draftTx(['chunks', 'meta'], 'readonly', tx => {
+      const c = tx.objectStore('chunks').getAll(), m = tx.objectStore('meta').get('cur');
+      const out = {};
+      c.onsuccess = () => { out.chunks = c.result; };
+      m.onsuccess = () => { out.meta = m.result; out.result = [out.chunks || [], out.meta]; };
+      return out;
+    });
+    if (!chunks.length) return null;
+    const blob = new Blob(chunks, { type: (meta && meta.mime) || 'audio/webm' });
+    return blob.size ? { blob, elapsed: (meta && meta.elapsed) || 0 } : null;
+  } catch (e) { logError('draft', e); return null; }
+}
+
 /* ── Recording ─────────────────────────────────────── */
 recBtn.addEventListener('click', () => isRecording ? stopRecording() : startRecording());
 
@@ -1779,7 +1839,8 @@ async function startRecording() {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     mediaRecorder = new MediaRecorder(stream);
     audioChunks = [];
-    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+    draftStart(mediaRecorder.mimeType || 'audio/webm');
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) { audioChunks.push(e.data); draftAppend(e.data); } };
     mediaRecorder.onerror = e => logError('mediaRecorder', e.error || 'recorder error');
     stream.getTracks().forEach(t => { t.onended = () => logError('mic', 'трек мікрофона завершився (iOS перервала запис)'); });
     mediaRecorder.start(100);
@@ -1800,7 +1861,10 @@ async function startRecording() {
   document.getElementById('homeScroll').style.pointerEvents = 'none';
   recOverlay.classList.add('visible');
   recTimer.textContent = fmt(0);
-  timerInterval = setInterval(() => { elapsed++; recTimer.textContent = fmt(elapsed); }, 1000);
+  timerInterval = setInterval(() => {
+    elapsed++; recTimer.textContent = fmt(elapsed);
+    if (elapsed % 5 === 0) draftElapsed(elapsed);
+  }, 1000);
 }
 
 function stopRecording() {
@@ -1810,6 +1874,7 @@ function stopRecording() {
   recBtn.classList.remove('rec');
   recBtn.setAttribute('aria-pressed','false');
   btnWrap.classList.remove('rec');
+  draftElapsed(elapsed);
   sheetDur.textContent = fmt(elapsed);
   buildMiniWave();
 
@@ -1836,10 +1901,16 @@ function setStatus(icon, text) {
   document.getElementById('statusText').textContent = text;
 }
 
+let lastBlob = null;     // audio of the entry in the sheet, kept for retry
+let retryMode = false;   // saveBtn acts as "Повторити" after a processing error
+
 function showSheet(blob) {
   overlay.classList.add('on');
   sheet.classList.add('up');
   saveBtn.classList.remove('on');
+  saveBtn.textContent = 'Зберегти';
+  retryMode = false;
+  lastBlob = blob;
   enrichedData = null;
   document.getElementById('sheetTitle').textContent = 'Твій запис';
   document.getElementById('sheetSub').textContent   = 'Зачекай кілька секунд…';
@@ -1883,9 +1954,26 @@ async function transcribeAndEnrich(blob) {
   } catch(err) {
     logError('transcribeAndEnrich', err);
     document.getElementById('sheetTitle').textContent = 'Помилка';
-    document.getElementById('sheetSub').textContent   = 'Перевір backend URL в налаштуваннях';
+    document.getElementById('sheetSub').textContent   = blob && blob.size ? 'Запис збережено на пристрої — спробуй ще раз' : 'Перевір backend URL в налаштуваннях';
     setStatus('⚠️', err.message || 'Не вдалося');
+    if (blob && blob.size) {
+      retryMode = true;
+      saveBtn.textContent = 'Повторити';
+      saveBtn.classList.add('on');
+    }
   }
+}
+
+// Picks up audio left over from a failed upload or a killed app
+async function recoverDraft() {
+  if (isRecording) return;
+  const d = await draftLoad();
+  if (!d || isRecording) return;
+  elapsed = d.elapsed;
+  sheetDur.textContent = fmt(elapsed);
+  buildMiniWave();
+  showSheet(d.blob);
+  document.getElementById('sheetTitle').textContent = 'Відновлений запис';
 }
 
 function hideSheet() {
@@ -1898,6 +1986,7 @@ function hideSheet() {
 }
 
 async function saveEntry() {
+  if (retryMode && saveBtn.classList.contains('on')) { showSheet(lastBlob); return; }
   if (!saveBtn.classList.contains('on') || !enrichedData) return;
   saveBtn.textContent = 'Зберігаємо…';
   saveBtn.classList.remove('on');
@@ -1929,6 +2018,9 @@ async function saveEntry() {
     try { localStorage.setItem('diary_entries', JSON.stringify(ENTRIES)); } catch {}
   }
 
+  // saved remotely or locally with its text: the audio is no longer needed
+  draftClear();
+  lastBlob = null;
   enrichedData = null;
   saveBtn.textContent = 'Зберегти';
   hideSheet();
@@ -1937,7 +2029,7 @@ async function saveEntry() {
 }
 
 function reRecord()    { hideSheet(); startRecording(); }
-function discardEntry(){ hideSheet(); }
+function discardEntry(){ draftClear(); lastBlob = null; hideSheet(); }
 
 /* ── Show All ──────────────────────────────────────── */
 document.getElementById('showAll').addEventListener('click', () => {
@@ -1950,4 +2042,5 @@ btnAnchor.classList.add('visible');
 renderFilters();
 renderHome();
 loadEntries().then(() => { renderHome(); renderList(ENTRIES); });
+recoverDraft();
 </script>

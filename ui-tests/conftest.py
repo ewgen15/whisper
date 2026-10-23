@@ -50,7 +50,9 @@ def browser_context_args(browser_context_args, playwright):
 def open_app(page, site):
     """Opens the app with a mocked backend. `entries=None` makes /entries fail."""
 
-    def _open(entries=ENTRIES):
+    def _open(entries=ENTRIES, transcribe=None):
+        """`transcribe`: optional callable(route) replacing the default successful /transcribe + /enrich."""
+
         def handle(route):
             url = route.request.url
             if route.request.method == "OPTIONS":
@@ -58,6 +60,10 @@ def open_app(page, site):
             cors = {"access-control-allow-origin": "*"}
             if url.endswith("/entries") and entries is not None:
                 return route.fulfill(json=entries, headers=cors)
+            if url.endswith("/transcribe"):
+                return transcribe(route) if transcribe else route.fulfill(json={"text": "Привіт"}, headers=cors)
+            if url.endswith("/enrich"):
+                return route.fulfill(json={"title": "Відновлена думка", "text": "Привіт", "mood": [], "tags": []}, headers=cors)
             if url.endswith("/stats"):
                 return route.fulfill(json={"days": []}, headers=cors)
             return route.fulfill(status=503, body="down", headers=cors)
