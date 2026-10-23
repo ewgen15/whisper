@@ -50,7 +50,7 @@ def browser_context_args(browser_context_args, playwright):
 def open_app(page, site):
     """Opens the app with a mocked backend. `entries=None` makes /entries fail."""
 
-    def _open(entries=ENTRIES, transcribe=None):
+    def _open(entries=ENTRIES, transcribe=None, init_script=None):
         """`transcribe`: optional callable(route) replacing the default successful /transcribe + /enrich."""
 
         def handle(route):
@@ -69,6 +69,8 @@ def open_app(page, site):
             return route.fulfill(status=503, body="down", headers=cors)
 
         page.route(f"{BACKEND}/**", handle)
+        if init_script:
+            page.add_init_script(init_script)
         page.add_init_script(
             f"localStorage.setItem('diary_backend', {json.dumps(BACKEND)});"
             "localStorage.setItem('diary_api_key', 'test-key');"
