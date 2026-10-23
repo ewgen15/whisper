@@ -83,7 +83,10 @@ def test_discard_removes_draft(open_app):
 FAKE_MIC = """
 Object.defineProperty(navigator, 'mediaDevices', {
   configurable: true,
-  value: { getUserMedia: async () => ({ getTracks: () => [{ stop() {}, readyState: 'live' }] }) },
+  value: { getUserMedia: async () => {
+    window.__mics = (window.__mics || 0) + 1;
+    return { getTracks: () => [{ stop() {}, readyState: 'live', get muted() { return !!window.__muted; } }] };
+  } },
 });
 window.MediaRecorder = class {
   constructor() { this.state = 'inactive'; this.mimeType = 'audio/webm'; }
@@ -144,3 +147,28 @@ def test_stop_while_paused_does_not_add_a_segment(open_app):
     page.locator("#recBtn").dispatch_event("click")
     expect(page.locator("#sheetTitle")).to_have_text("Відновлена думка")
     assert len(calls) == 1
+
+
+def test_muted_mic_is_shown_and_recovered(open_app):
+    page = open_app(init_script=FAKE_MIC)
+    page.locator("#recBtn").dispatch_event("click")
+    expect(page.locator("#btnWrap")).to_have_class(re.compile("rec"))
+    expect(page.locator("#recState")).to_have_text("Запис")
+
+    page.evaluate("window.__muted = true")
+    expect(page.locator("#recState")).to_have_text("Мікрофон не чує", timeout=5000)
+
+    page.evaluate("window.__muted = false")
+    expect(page.locator("#recState")).to_have_text("Запис", timeout=5000)
+    assert page.evaluate("window.__mics") >= 2, "mic is reopened after it went silent"
+
+
+def test_resume_reopens_the_mic(open_app):
+    page = open_app(init_script=FAKE_MIC)
+    page.locator("#recBtn").dispatch_event("click")
+    expect(page.locator("#btnWrap")).to_have_class(re.compile("rec"))
+    page.locator("#pauseBtn").dispatch_event("click")
+    expect(page.locator("#btnWrap")).to_have_class(re.compile("paused"))
+    page.locator("#pauseBtn").dispatch_event("click")
+    expect(page.locator("#btnWrap")).not_to_have_class(re.compile("paused"))
+    assert page.evaluate("window.__mics") == 2

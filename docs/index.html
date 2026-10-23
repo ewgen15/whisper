@@ -259,6 +259,10 @@ body.has-banner .hdr {
 }
 .rec-state i { width: 8px; height: 8px; border-radius: 50%; background: var(--rec); display: inline-block; }
 .rec-overlay.visible:not(.paused) .rec-state i { animation: rec-blink 1.1s ease-in-out infinite; }
+.rec-overlay.lost .rec-state i { background: #ff6b6b; animation: none; }
+.rec-overlay.lost .rec-state span { color: #ff8f8f; }
+.rec-overlay.lost .rec-timer { opacity: 0.45; }
+.rec-overlay.lost .rec-bar { animation-play-state: paused; height: 4px !important; opacity: 0.25; }
 .rec-overlay.paused .rec-state i { background: rgba(30,16,40,0.45); }
 .rec-overlay.paused .rec-timer { opacity: 0.45; animation: rec-dim 1.6s ease-in-out infinite; }
 .rec-overlay.paused .rec-bar { animation-play-state: paused; height: 4px !important; opacity: 0.25; transition: height 0.4s; }
@@ -1042,7 +1046,7 @@ function fitScreenHeight() {
 }
 fitScreenHeight();
 addEventListener('resize', fitScreenHeight);
-const APP_VERSION = '2026-10-23.cae3de';
+const APP_VERSION = '2026-10-23.9c1328';
 
 /* ── Error log (last 20, localStorage) ────────────── */
 const ERRLOG_KEY = 'diary_errlog';
@@ -1894,7 +1898,7 @@ function releaseScreen() {
   wakeLock = null;
 }
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && isRecording && !isPaused) holdScreen();
+  if (document.visibilityState === 'visible' && isRecording && !isPaused) { holdScreen(); micCheck(); }
 });
 
 // A pause ends the current segment (a standalone audio file) and sends it for transcription right away;
@@ -1908,8 +1912,48 @@ let segPending = Promise.resolve();   // the segment that is still being finaliz
 
 async function openMic() {
   micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  micStream.getTracks().forEach(t => { t.onended = () => logError('mic', 'трек мікрофона завершився (iOS перервала запис)'); });
+  micStream.getTracks().forEach(t => {
+    t.onended = () => { logError('mic', 'трек мікрофона завершився (iOS перервала запис)'); micCheck(); };
+    t.onmute = () => micCheck();
+    t.onunmute = () => micCheck();
+  });
 }
+// A live-looking recorder is not proof of sound: after a screen lock iOS leaves the track muted/ended
+function micHealthy() {
+  return !!micStream && micStream.getTracks().some(t => t.readyState === 'live' && !t.muted);
+}
+let micLost = false, lastChunkAt = 0, micWatch = null, micRecovering = false;
+function setMicLost(on) {
+  if (micLost === on) return;
+  micLost = on;
+  recOverlay.classList.toggle('lost', on);
+  if (!isPaused) recState.textContent = on ? 'Мікрофон не чує' : 'Запис';
+  if (on) logError('mic', 'мікрофон не віддає звук під час запису');
+}
+// Ends the dead segment (keeping what it captured) and starts a new one on a freshly opened mic
+async function recoverMic() {
+  if (micRecovering || !isRecording || isPaused) return;
+  micRecovering = true;
+  try {
+    const seg = await endSegment();
+    if (seg) sendSegment(seg);
+    closeMic();
+    await openMic();
+    beginSegment();
+    lastChunkAt = Date.now();
+    if (micHealthy()) setMicLost(false);
+  } catch (e) { logError('micRecover', e); }
+  micRecovering = false;
+}
+function micCheck() {
+  if (!isRecording || isPaused) return;
+  const stalled = Date.now() - lastChunkAt > 2500;
+  if (micHealthy() && !stalled) { setMicLost(false); return; }
+  setMicLost(true);
+  if (document.visibilityState === 'visible') recoverMic();
+}
+function startMicWatch() { lastChunkAt = Date.now(); clearInterval(micWatch); micWatch = setInterval(micCheck, 1500); }
+function stopMicWatch() { clearInterval(micWatch); micWatch = null; setMicLost(false); }
 function closeMic() {
   if (micStream) micStream.getTracks().forEach(t => t.stop());
   micStream = null;
@@ -1919,7 +1963,7 @@ function beginSegment() {
   const idx = segCounter++, chunks = [];
   segChunks = chunks;
   mediaRecorder = new MediaRecorder(micStream);
-  mediaRecorder.ondataavailable = e => { if (e.data.size > 0) { chunks.push(e.data); draftAppend(idx, e.data); } };
+  mediaRecorder.ondataavailable = e => { lastChunkAt = Date.now(); if (e.data.size > 0) { chunks.push(e.data); draftAppend(idx, e.data); } };
   mediaRecorder.onerror = e => logError('mediaRecorder', e.error || 'recorder error');
   mediaRecorder.idx = idx;
   mediaRecorder.start(100);
@@ -1984,6 +2028,7 @@ async function startRecording() {
   recOverlay.classList.add('visible');
   recTimer.textContent = fmt(0);
   startTimer();
+  startMicWatch();
 }
 
 function pauseRecording() {
@@ -1991,6 +2036,7 @@ function pauseRecording() {
   showPaused(true);
   clearInterval(timerInterval);
   releaseScreen();
+  stopMicWatch();
   draftElapsed(elapsed);
   segPending = endSegment().then(seg => { if (seg) sendSegment(seg); });
 }
@@ -1999,8 +2045,9 @@ async function resumeRecording() {
   if (!isRecording || !isPaused) return;
   await segPending;
   try {
-    // iOS may have ended the mic while the app sat in the background
-    if (!micStream || micStream.getTracks().every(t => t.readyState === 'ended')) await openMic();
+    // after a lock/background iOS leaves the old stream silent while it still looks alive: always reopen
+    closeMic();
+    await openMic();
     beginSegment();
   } catch (e) {
     logError('resume', e);
@@ -2010,6 +2057,7 @@ async function resumeRecording() {
   showPaused(false);
   holdScreen();
   startTimer();
+  startMicWatch();
 }
 
 async function stopRecording() {
@@ -2017,6 +2065,7 @@ async function stopRecording() {
   isRecording = false;
   showPaused(false);
   releaseScreen();
+  stopMicWatch();
   clearInterval(timerInterval);
   recBtn.classList.remove('rec');
   recBtn.setAttribute('aria-pressed','false');
@@ -2026,7 +2075,10 @@ async function stopRecording() {
   buildMiniWave();
 
   await segPending;
-  if (!wasPaused) await endSegment();
+  if (!wasPaused) {
+    while (micRecovering) await new Promise(r => setTimeout(r, 50));
+    await endSegment();
+  }
   closeMic();
   showSheet(segments.slice());
 }
