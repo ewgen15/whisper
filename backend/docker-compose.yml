@@ -4,4 +4,8 @@ services:
     ports:
       - "8000:8000"
     env_file: .env
+    # host resolv.conf is 127.0.0.1, which Docker cannot forward to
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     restart: unless-stopped
