@@ -28,6 +28,17 @@ ENTRIES = [
     },
 ]
 
+ENRICHED = {
+    "title": "Відновлена думка",
+    "text": "Привіт, світе.",
+    "mood": ["Спокійний"],
+    "emotional_state": "Спокій",
+    "physical_state": "Бадьорий",
+    "entry_type": "Роздум",
+    "time_of_day": "Вечір",
+    "tags": ["тест"],
+}
+
 
 @pytest.fixture(scope="session")
 def site():
@@ -51,7 +62,9 @@ def open_app(page, site):
     """Opens the app with a mocked backend. `entries=None` makes /entries fail."""
 
     def _open(entries=ENTRIES, transcribe=None, init_script=None):
-        """`transcribe`: optional callable(route) replacing the default successful /transcribe + /enrich."""
+        """`transcribe`: optional callable(route) replacing the default successful /transcribe + /enrich.
+        Bodies POSTed to /save are collected in `page.saves`."""
+        page.saves = []
 
         def handle(route):
             url = route.request.url
@@ -63,7 +76,11 @@ def open_app(page, site):
             if url.endswith("/transcribe"):
                 return transcribe(route) if transcribe else route.fulfill(json={"text": "Привіт"}, headers=cors)
             if url.endswith("/enrich"):
-                return route.fulfill(json={"title": "Відновлена думка", "text": "Привіт", "mood": [], "tags": []}, headers=cors)
+                return route.fulfill(json=ENRICHED, headers=cors)
+            if url.endswith("/save"):
+                entry = json.loads(route.request.post_data)["entry"]
+                page.saves.append(entry)
+                return route.fulfill(json={**entry, "id": 99, "created_at": "2026-10-26T18:00:00Z"}, headers=cors)
             if url.endswith("/stats"):
                 return route.fulfill(json={"days": []}, headers=cors)
             return route.fulfill(status=503, body="down", headers=cors)

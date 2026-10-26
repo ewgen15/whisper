@@ -44,9 +44,9 @@ def test_leftover_audio_is_recovered_and_processed(open_app):
     page = open_app()
     page.evaluate(SEED_DRAFT)
     page.reload()
-    expect(page.locator("#sheetTitle")).to_have_text("Відновлена думка")
-    expect(page.locator("#sheetDur")).to_have_text("1:52")
-    expect(page.locator("#saveBtn")).to_have_text("Зберегти")
+    expect(page.locator("#rvTitle")).to_have_value("Відновлена думка")
+    expect(page.locator("#rvDur")).to_have_text("1:52")
+    expect(page.locator("#rvSave")).to_have_text("Зберегти")
 
 
 def test_retry_after_failed_upload_keeps_audio(open_app):
@@ -62,22 +62,24 @@ def test_retry_after_failed_upload_keeps_audio(open_app):
     page = open_app(transcribe=flaky)
     page.evaluate(SEED_DRAFT)
     page.reload()
-    expect(page.locator("#saveBtn")).to_have_text("Повторити")
-    expect(page.locator("#sheetSub")).to_contain_text("збережено на пристрої")
-    page.locator("#saveBtn").click()
-    expect(page.locator("#sheetTitle")).to_have_text("Відновлена думка")
-    expect(page.locator("#saveBtn")).to_have_text("Зберегти")
+    expect(page.locator("#rvSave")).to_have_text("Повторити")
+    expect(page.locator("#rvErrMsg")).to_contain_text("збережено на пристрої")
+    page.locator("#rvSave").click()
+    expect(page.locator("#rvTitle")).to_have_value("Відновлена думка")
+    expect(page.locator("#rvSave")).to_have_text("Зберегти")
 
 
 def test_discard_removes_draft(open_app):
     page = open_app()
     page.evaluate(SEED_DRAFT)
     page.reload()
-    expect(page.locator("#saveBtn")).to_have_text("Зберегти")
-    page.get_by_text("Видалити запис").click()
+    expect(page.locator("#rvSave")).to_have_text("Зберегти")
+    page.locator("#rvClose").click()
+    page.locator("#dcOk").click()
+    expect(page.locator("#review")).not_to_have_class(re.compile("active"))
     page.reload()
     page.wait_for_timeout(500)
-    assert not page.locator("#sheet.up").count()
+    assert not page.locator("#review.active").count()
 
 
 FAKE_MIC = """
@@ -126,7 +128,7 @@ def test_pause_sends_segment_immediately_and_stop_sends_the_rest(open_app):
     expect(page.locator("#btnWrap")).not_to_have_class(re.compile("paused"))
     page.wait_for_timeout(300)
     page.locator("#recBtn").dispatch_event("click")
-    expect(page.locator("#sheetTitle")).to_have_text("Відновлена думка")
+    expect(page.locator("#rvTitle")).to_have_value("Відновлена думка")
     assert len(calls) == 2, "only the last segment is sent on stop"
 
 
@@ -145,7 +147,7 @@ def test_stop_while_paused_does_not_add_a_segment(open_app):
     expect(page.locator("#btnWrap")).to_have_class(re.compile("paused"))
     page.wait_for_timeout(300)
     page.locator("#recBtn").dispatch_event("click")
-    expect(page.locator("#sheetTitle")).to_have_text("Відновлена думка")
+    expect(page.locator("#rvTitle")).to_have_value("Відновлена думка")
     assert len(calls) == 1
 
 
@@ -172,3 +174,101 @@ def test_resume_reopens_the_mic(open_app):
     page.locator("#pauseBtn").dispatch_event("click")
     expect(page.locator("#btnWrap")).not_to_have_class(re.compile("paused"))
     assert page.evaluate("window.__mics") == 2
+
+
+def review_ready(open_app):
+    page = open_app()
+    page.evaluate(SEED_DRAFT)
+    page.reload()
+    expect(page.locator("#rvSave")).to_be_enabled()
+    return page
+
+
+def test_review_is_a_full_screen_not_a_sheet(open_app):
+    page = review_ready(open_app)
+    expect(page.locator("#review")).to_have_class(re.compile("active"))
+    expect(page.locator("#btnAnchor")).not_to_have_class(re.compile("visible"))
+    box = page.locator("#review").bounding_box()
+    vp = page.viewport_size
+    assert box["width"] >= vp["width"] - 1 and box["height"] >= vp["height"] - 1
+    expect(page.locator("#rvText")).to_have_value("Привіт, світе.")
+    expect(page.locator("#rvMood")).to_contain_text("Спокійний")
+    expect(page.locator("#rvTags")).to_contain_text("тест")
+    # nothing overflows sideways and the action bar stays inside the screen
+    assert page.evaluate("document.documentElement.scrollWidth - window.innerWidth") <= 0
+    bar = page.locator(".rv-bar").bounding_box()
+    assert bar["y"] + bar["height"] <= vp["height"]
+
+
+def test_save_sends_edited_title_text_and_chips(open_app):
+    page = review_ready(open_app)
+    page.locator("#rvTitle").fill("Моя назва")
+    page.locator("#rvText").fill("Виправлений текст.")
+    page.locator("#rvTags .rv-del").click()
+    page.locator("#rvTags .rv-add").click()
+    page.locator(".rv-add-in").fill("новий")
+    page.locator(".rv-add-in").press("Enter")
+    expect(page.locator("#rvTags")).to_contain_text("новий")
+    page.locator("#rvSave").click()
+    expect(page.locator("#review")).not_to_have_class(re.compile("active"))
+    assert len(page.saves) == 1
+    sent = page.saves[0]
+    assert sent["title"] == "Моя назва"
+    assert sent["text"] == "Виправлений текст."
+    assert sent["rawText"] == "Привіт"
+    assert sent["tags"] == ["новий"]
+    assert sent["mood"] == ["Спокійний"]
+    expect(page.locator("#homeEntries").get_by_text("Моя назва")).to_be_visible()
+
+
+def test_raw_text_toggle_is_read_only_and_keeps_edits(open_app):
+    page = review_ready(open_app)
+    page.locator("#rvText").fill("Моя правка")
+    page.locator("#rvSeg").get_by_text("Оригінал").click()
+    expect(page.locator("#rvText")).to_have_value("Привіт")
+    expect(page.locator("#rvText")).not_to_be_editable()
+    page.locator("#rvSeg").get_by_text("Оброблений").click()
+    expect(page.locator("#rvText")).to_have_value("Моя правка")
+
+
+def test_removing_a_chip_and_emotion_is_saved(open_app):
+    page = review_ready(open_app)
+    page.locator("#rvMood .rv-del").click()
+    page.locator("#rvEmo .rv-del").click()
+    page.locator("#rvSave").click()
+    expect(page.locator("#review")).not_to_have_class(re.compile("active"))
+    assert page.saves[0]["mood"] == []
+    assert page.saves[0]["emotional_state"] is None
+
+
+def test_close_asks_before_deleting_and_can_be_cancelled(open_app):
+    page = review_ready(open_app)
+    page.locator("#rvClose").click()
+    expect(page.locator("#discardSheet")).to_have_class(re.compile("up"))
+    page.get_by_role("button", name="Залишити").click()
+    expect(page.locator("#discardSheet")).not_to_have_class(re.compile("up"))
+    expect(page.locator("#review")).to_have_class(re.compile("active"))
+    assert page.evaluate(SEED_CHECK) is True, "draft survives a cancelled discard"
+
+
+def test_processing_state_keeps_save_disabled(open_app):
+    def slow(route):
+        page.wait_for_timeout(1500)
+        route.fulfill(json={"text": "Привіт"}, headers={"access-control-allow-origin": "*"})
+
+    page = open_app(transcribe=slow)
+    page.evaluate(SEED_DRAFT)
+    page.reload()
+    expect(page.locator("#review")).to_have_attribute("data-s", "transcribing")
+    expect(page.locator("#rvSave")).to_be_disabled()
+    expect(page.locator("#review")).to_have_attribute("data-s", "ready", timeout=8000)
+    expect(page.locator("#rvSave")).to_be_enabled()
+
+
+SEED_CHECK = """() => new Promise(resolve => {
+  const req = indexedDB.open('whisper-draft', 1);
+  req.onsuccess = () => {
+    const q = req.result.transaction('chunks').objectStore('chunks').count();
+    q.onsuccess = () => resolve(q.result > 0);
+  };
+})"""

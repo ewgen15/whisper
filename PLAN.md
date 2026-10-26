@@ -43,7 +43,7 @@ iPhone (Tailscale)
 ### PWA (GitHub Pages)
 - [x] Реальний запис голосу (MediaRecorder API)
 - [x] Екран запису (таймер + waveform анімація)
-- [x] Bottom sheet після зупинки (статус обробки)
+- [x] Повноекранний екран після зупинки: текст, поля й чіпи редагуються до збереження, перемикач «Оброблений / Оригінал», плеєр аудіо (замість bottom sheet)
 - [x] Список записів (завантажується з Supabase)
 - [x] Деталь запису (всі поля)
 - [x] Пошук і фільтри по типу
@@ -76,6 +76,7 @@ iPhone (Tailscale)
 - [x] Tailscale OAuth + SSH keys в GitHub Secrets
 - [x] CI: ruff + pytest + синтаксис фронтенда; деплой залежить від CI
 - [x] Tailscale Funnel + `X-API-Key` (бекенд публічний)
+- [ ] **Staging для фронтенду:** пушити не в `main`, а в окрему гілку й дивитись зміни за окремим посиланням (наприклад, GitHub Pages з Actions-деплоєм гілки в підпапку `/staging/` або Cloudflare Pages preview). Потрібно: окремий `start_url`/scope у manifest, щоб PWA зі staging не плутався з основною, і той самий бекенд (CORS уже дозволяє github.io). Не критично, поки застосунком користується один користувач
 - [ ] Автодеплой: полагодити Tailscale OAuth-секрети (`TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET`, `tag:ci`); поки деплой — `scripts/deploy.sh`
 - [ ] Branch protection на `main` (обов'язкові перевірки `backend`, `frontend`, `docker`) — потрібен `gh auth login`
 - [ ] Перший запуск `uptime.yml` вручну (Run workflow) і перевірка листа

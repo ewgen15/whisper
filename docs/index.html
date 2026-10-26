@@ -531,6 +531,90 @@ body.has-banner .hdr {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+
+/* ── Review screen (after recording) ──────────────── */
+#review .hdr { padding-bottom: 8px; }
+.rv-x-btn, .rv-play {
+  width: 40px; height: 40px; border-radius: 50%; border: none; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.rv-x-btn { background: rgba(255,248,244,0.55); color: var(--plum); }
+.rv-hdr-mid { text-align: center; }
+.rv-hdr-t { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.55; }
+.rv-hdr-s { font-size: 0.68rem; opacity: 0.45; margin-top: 2px; }
+.rv-hdr-r { width: 40px; flex-shrink: 0; }
+.rv-body { flex: 1; overflow-y: auto; padding-bottom: 24px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.rv-body::-webkit-scrollbar { display: none; }
+.rv-audio { display: flex; align-items: center; gap: 10px; background: var(--card-bg); border-radius: 16px; padding: 10px 14px; }
+.rv-play { width: 34px; height: 34px; background: var(--plum); color: var(--cream); }
+.rv-play .i-pause, .rv-play.on .i-play { display: none; }
+.rv-play.on .i-pause { display: block; }
+.rv-bars { flex: 1; height: 28px; display: flex; align-items: center; gap: 2px; overflow: hidden; }
+.rv-bars i { flex: 1; background: var(--plum); opacity: 0.3; border-radius: 2px; min-width: 2px; }
+.rv-dur { font-size: 0.78rem; opacity: 0.6; font-variant-numeric: tabular-nums; }
+.rv-steps { display: flex; gap: 8px; margin: 14px 0 0; font-size: 0.72rem; }
+.rv-step { flex: 1; display: flex; align-items: center; gap: 7px; opacity: 0.4; transition: opacity 0.3s; }
+.rv-step .dot { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid currentColor; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.rv-step .dot svg { display: none; }
+.rv-step.act { opacity: 0.9; }
+.rv-step.act .dot { border-color: transparent; border-top-color: var(--plum); animation: spin 0.8s linear infinite; }
+.rv-step.done { opacity: 0.7; }
+.rv-step.done .dot { background: #4CAF72; border-color: #4CAF72; }
+.rv-step.done .dot svg { display: block; }
+.rv-err { display: none; background: var(--card-bg); border-radius: 16px; padding: 16px; margin-top: 14px; }
+.rv-err b { font-weight: 500; display: block; margin-bottom: 4px; }
+.rv-err p { font-size: 0.84rem; opacity: 0.7; line-height: 1.5; }
+#review[data-s="error"] .rv-err { display: block; }
+#review[data-s="error"] .rv-steps, #review[data-s="error"] .rv-paper { display: none; }
+
+.rv-paper { background: var(--sheet-bg); border-radius: 24px; padding: 18px 18px 20px; margin-top: 14px; box-shadow: 0 6px 24px rgba(60,20,70,0.12); }
+.rv-lbl { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.4; margin-bottom: 6px; }
+.rv-title, .rv-text {
+  display: block; width: calc(100% + 12px); margin: 0 -6px; padding: 4px 6px; border: none; outline: none;
+  background: transparent; resize: none; color: var(--plum); border-radius: 10px;
+}
+.rv-title { font-family: 'Fixel Display', sans-serif; font-weight: 800; font-size: 1.75rem; line-height: 1.15; letter-spacing: -0.01em; }
+.rv-text { font-family: 'Fixel Text', sans-serif; font-size: 1rem; line-height: 1.75; opacity: 0.88; min-height: 120px; }  /* 16px+: no iOS zoom on focus */
+.rv-title:focus, .rv-text:focus { background: rgba(123,111,168,0.09); }
+.rv-seg { display: none; background: rgba(30,16,40,0.08); border-radius: 10px; padding: 2px; margin: 14px 0 8px; width: fit-content; }
+#review[data-s="ready"] .rv-seg, #review[data-s="saving"] .rv-seg { display: inline-flex; }
+.rv-seg button { font: inherit; font-size: 0.72rem; border: none; background: none; padding: 5px 12px; border-radius: 8px; color: var(--plum); opacity: 0.6; cursor: pointer; }
+.rv-seg button.on { background: var(--cream); opacity: 1; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+.rv-hint { font-size: 0.7rem; opacity: 0.42; margin-top: 6px; }
+.rv-field { margin-top: 16px; }
+.rv-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.rv-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 0.76rem; padding: 5px 12px; border-radius: 20px; background: rgba(30,16,40,0.07); }
+.rv-chip.calm { background: rgba(123,111,168,0.17); color: #5B4F8A; }
+.rv-chip.good { background: rgba(70,150,90,0.13); color: rgb(50,115,65); }
+.rv-chip.warn { background: rgba(205,150,40,0.17); color: #8A6416; }
+.rv-chip.bad  { background: rgba(170,90,50,0.13); color: rgb(140,70,30); }
+.rv-chip.tag  { background: none; border: 1px solid rgba(30,16,40,0.18); }
+.rv-chip .rv-del { all: unset; cursor: pointer; opacity: 0.45; padding: 0 2px; font-size: 0.95rem; line-height: 1; }
+.rv-add { font: inherit; font-size: 0.76rem; padding: 5px 12px; border-radius: 20px; border: 1px dashed rgba(30,16,40,0.28); background: none; color: var(--plum); opacity: 0.7; cursor: pointer; }
+.rv-add-in { font: inherit; font-size: 16px; width: 130px; padding: 4px 10px; border-radius: 20px; border: 1.5px solid rgba(123,111,168,0.5); outline: none; background: #fff; color: var(--plum); }
+.rv-more { margin-top: 18px; width: 100%; font: inherit; font-size: 0.8rem; background: none; border: none; border-top: 1px solid rgba(30,16,40,0.1); padding: 12px 0 0; text-align: left; color: var(--plum); opacity: 0.6; cursor: pointer; display: flex; justify-content: space-between; }
+.rv-more-body { display: none; }
+.rv-more-body.open { display: block; }
+.rv-kv { display: flex; justify-content: space-between; gap: 16px; font-size: 0.86rem; padding: 9px 0; border-bottom: 1px solid rgba(30,16,40,0.06); }
+.rv-kv span:first-child { opacity: 0.5; white-space: nowrap; }
+.rv-kv span:last-child { text-align: right; }
+
+.rv-sk { display: none; }
+.rv-sk i { display: block; height: 12px; border-radius: 6px; margin-bottom: 9px; background: linear-gradient(90deg, rgba(30,16,40,0.07), rgba(255,255,255,0.55), rgba(30,16,40,0.07)); background-size: 200% 100%; animation: rv-sh 1.3s linear infinite; }
+.rv-sk.big i { height: 26px; border-radius: 8px; }
+@keyframes rv-sh { to { background-position: -200% 0; } }
+#review[data-s="transcribing"] .rv-sk-title, #review[data-s="transcribing"] .rv-sk-text,
+#review[data-s="analyzing"] .rv-sk-title, #review[data-s="analyzing"] .rv-sk-fields { display: block; }
+#review[data-s="transcribing"] .rv-title, #review[data-s="transcribing"] .rv-text, #review[data-s="transcribing"] .rv-hint, #review[data-s="transcribing"] .rv-fields,
+#review[data-s="analyzing"] .rv-title, #review[data-s="analyzing"] .rv-fields { display: none; }
+#review[data-s="analyzing"] .rv-text { pointer-events: none; }
+
+.rv-bar { flex-shrink: 0; display: flex; gap: 10px; padding: 12px 0 max(env(safe-area-inset-bottom, 0px), 20px); }
+.rv-bar .btn-sec { flex: 0 0 auto; padding: 0 20px; height: 52px; border-radius: 26px; background: rgba(255,248,244,0.5); opacity: 0.8; }
+.rv-bar .btn-pri { height: 52px; border-radius: 26px; padding: 0; font-size: 0.95rem; opacity: 1; transition: opacity 0.2s; }
+.rv-bar .btn-pri:disabled { opacity: 0.3; cursor: default; }
+.btn-pri.danger { background: var(--rec); color: #fff; }
+
 /* ── Sheet buttons */
 .sheet-btns { display: flex; gap: 10px; margin-bottom: 10px; }
 .btn-sec {
@@ -785,6 +869,69 @@ body.has-banner .hdr {
   <div class="list-scroll" id="statsBody"><div class="st-msg">Завантаження…</div></div>
 </div>
 
+<!-- S2b: Review (after recording) -->
+<div class="screen" id="review" data-s="transcribing">
+  <div class="hdr">
+    <button class="rv-x-btn" id="rvClose" aria-label="Видалити запис" onclick="askDiscard('delete')">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+    </button>
+    <div class="rv-hdr-mid">
+      <div class="rv-hdr-t" id="rvHdrT">Новий запис</div>
+      <div class="rv-hdr-s" id="rvHdrS"></div>
+    </div>
+    <div class="rv-hdr-r"></div>
+  </div>
+
+  <div class="rv-body">
+    <div class="rv-audio">
+      <button class="rv-play" id="rvPlay" aria-label="Прослухати" onclick="rvTogglePlay()">
+        <svg class="i-play" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21"/></svg>
+        <svg class="i-pause" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+      </button>
+      <div class="rv-bars" id="rvBars"></div>
+      <span class="rv-dur" id="rvDur">0:00</span>
+    </div>
+
+    <div class="rv-steps">
+      <div class="rv-step" id="rvStep1"><span class="dot"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Транскрибація</div>
+      <div class="rv-step" id="rvStep2"><span class="dot"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Аналіз і поля</div>
+    </div>
+
+    <div class="rv-err">
+      <b>Не вдалося обробити</b>
+      <p id="rvErrMsg"></p>
+    </div>
+
+    <div class="rv-paper">
+      <div class="rv-lbl">Назва</div>
+      <div class="rv-sk rv-sk-title big"><i style="width:85%"></i><i style="width:55%"></i></div>
+      <textarea class="rv-title" id="rvTitle" rows="1" enterkeyhint="done" aria-label="Назва"></textarea>
+
+      <div class="rv-seg" id="rvSeg">
+        <button class="on" data-v="edited">Оброблений</button>
+        <button data-v="raw">Оригінал</button>
+      </div>
+      <div class="rv-sk rv-sk-text" style="margin-top:18px"><i style="width:100%"></i><i style="width:96%"></i><i style="width:99%"></i><i style="width:70%"></i><i style="width:92%"></i><i style="width:60%"></i></div>
+      <textarea class="rv-text" id="rvText" aria-label="Текст"></textarea>
+      <div class="rv-hint" id="rvHint"></div>
+
+      <div class="rv-sk rv-sk-fields" style="margin-top:22px"><i style="width:30%"></i><i style="width:75%;height:26px"></i><i style="width:30%;margin-top:16px"></i><i style="width:60%;height:26px"></i></div>
+      <div class="rv-fields" id="rvFields">
+        <div class="rv-field"><div class="rv-lbl">Настрій</div><div class="rv-chips" id="rvMood" data-list="mood"></div></div>
+        <div class="rv-field"><div class="rv-lbl">Емоційний стан</div><div class="rv-chips" id="rvEmo" data-list="emo"></div></div>
+        <div class="rv-field"><div class="rv-lbl">Теги</div><div class="rv-chips" id="rvTags" data-list="tags"></div></div>
+        <button class="rv-more" id="rvMore" onclick="rvToggleMore()"><span>Ще поля: тип, час доби, контекст, проект</span><span id="rvMoreArr">▾</span></button>
+        <div class="rv-more-body" id="rvMoreBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rv-bar">
+    <button class="btn-sec" id="rvRerec" onclick="askDiscard('rerecord')">Переписати</button>
+    <button class="btn-pri" id="rvSave" onclick="saveEntry()" disabled>Зберегти</button>
+  </div>
+</div>
+
 <!-- Fixed record button -->
 <div class="btn-anchor" id="btnAnchor">
   <div class="btn-wrap" id="btnWrap">
@@ -812,55 +959,18 @@ body.has-banner .hdr {
   <span class="btn-hint" id="btnHint">Натисни, щоб записати</span>
 </div>
 
-<!-- Bottom sheet -->
-<div class="overlay" id="overlay"></div>
-<div class="sheet" id="sheet">
+<!-- Discard / re-record confirmation -->
+<div class="overlay" id="overlay" onclick="closeDiscard()"></div>
+<div class="sheet" id="discardSheet">
   <div class="sheet-handle"></div>
-
   <div class="sheet-head">
-    <div class="sheet-title" id="sheetTitle">Твій запис</div>
-    <div class="sheet-sub"   id="sheetSub">Зачекай кілька секунд…</div>
+    <div class="sheet-title" id="dcTitle">Видалити цей запис?</div>
+    <div class="sheet-sub" id="dcSub">Аудіо й текст зникнуть з пристрою. Повернути їх буде неможливо.</div>
   </div>
-
-  <div class="sheet-rows">
-    <!-- Audio row -->
-    <div class="sheet-row">
-      <div class="row-icon">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="opacity:.6">
-          <rect x="9" y="2" width="6" height="11" rx="3"/>
-          <path d="M5 10a7 7 0 0 0 14 0"/>
-          <line x1="12" y1="19" x2="12" y2="22"/>
-          <line x1="9"  y1="22" x2="15" y2="22"/>
-        </svg>
-      </div>
-      <span class="row-label">Аудіо</span>
-      <div class="row-ctrl">
-        <button class="play-mini" aria-label="Play">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="#FFF5EE"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        </button>
-        <div class="mini-bars" id="miniBars"></div>
-        <span class="sheet-dur" id="sheetDur">0:00</span>
-      </div>
-    </div>
-
-    <!-- Processing row -->
-    <div class="sheet-row">
-      <div class="row-icon" id="statusIcon">
-        <div class="spinner"></div>
-      </div>
-      <span class="row-label">Обробка</span>
-      <div class="row-ctrl">
-        <span id="statusText">Транскрибується…</span>
-      </div>
-    </div>
-  </div>
-
   <div class="sheet-btns">
-    <button class="btn-sec" onclick="reRecord()">Переписати</button>
-    <button class="btn-pri" id="saveBtn" onclick="saveEntry()">Зберегти</button>
+    <button class="btn-sec" onclick="closeDiscard()">Залишити</button>
+    <button class="btn-pri on danger" id="dcOk" onclick="confirmDiscard()">Видалити</button>
   </div>
-  <button class="btn-del" onclick="discardEntry()">Видалити запис</button>
 </div>
 
 <!-- Edit sheet -->
@@ -1046,7 +1156,7 @@ function fitScreenHeight() {
 }
 fitScreenHeight();
 addEventListener('resize', fitScreenHeight);
-const APP_VERSION = '2026-10-23.9c1328';
+const APP_VERSION = '2026-10-26.7ab5fb';
 
 /* ── Error log (last 20, localStorage) ────────────── */
 const ERRLOG_KEY = 'diary_errlog';
@@ -1218,9 +1328,6 @@ const recOverlay = document.getElementById('recOverlay');
 const recTimer   = document.getElementById('recTimer');
 const recBars    = document.getElementById('recBars');
 const overlay    = document.getElementById('overlay');
-const sheet      = document.getElementById('sheet');
-const saveBtn    = document.getElementById('saveBtn');
-const sheetDur   = document.getElementById('sheetDur');
 
 /* ── Navigation ────────────────────────────────────── */
 function showScreen(id) {
@@ -1569,13 +1676,6 @@ function buildBars() {
     const h = 8 + Math.round(Math.abs(Math.sin(i*0.4+1))*32);
     return `<div class="rec-bar" style="--h:${h}px;animation-delay:${(i*0.04).toFixed(2)}s;animation-duration:${(0.7+Math.random()*0.5).toFixed(2)}s"></div>`;
   }).join('');
-}
-
-function buildMiniWave() {
-  document.getElementById('miniBars').innerHTML =
-    Array.from({length:30}, (_,i) =>
-      `<div class="mini-bar" style="height:${4+Math.round(Math.abs(Math.sin(i*0.5))*18+Math.random()*8)}px"></div>`
-    ).join('');
 }
 
 /* ── Render ────────────────────────────────────────── */
@@ -2071,8 +2171,6 @@ async function stopRecording() {
   recBtn.setAttribute('aria-pressed','false');
   btnWrap.classList.remove('rec');
   draftElapsed(elapsed);
-  sheetDur.textContent = fmt(elapsed);
-  buildMiniWave();
 
   await segPending;
   if (!wasPaused) {
@@ -2080,31 +2178,180 @@ async function stopRecording() {
     await endSegment();
   }
   closeMic();
-  showSheet(segments.slice());
+  openReview(segments.slice());
 }
 
-/* ── Sheet + transcription ─────────────────────────── */
-function setStatus(icon, text) {
-  document.getElementById('statusIcon').innerHTML = icon;
-  document.getElementById('statusText').textContent = text;
+/* ── Review screen + transcription ─────────────────── */
+const rv = id => document.getElementById(id);
+let lastSegs = null;      // segments of the entry under review, kept for retry
+let rvRun = 0;            // bumped on discard/new run so a late response cannot refill the screen
+let rvView = 'edited';    // which text the textarea shows: edited | raw
+let rvEdited = '';        // the editable version of the text
+let rvRaw = '';           // transcript as Whisper heard it
+let rvLists = { mood: [], emo: [], tags: [] };
+let rvDiscardMode = 'delete';
+
+function rvSetState(s) {
+  rv('review').dataset.s = s;
+  rv('rvStep1').className = 'rv-step ' + (s === 'transcribing' ? 'act' : s === 'error' ? '' : 'done');
+  rv('rvStep2').className = 'rv-step ' + (s === 'analyzing' ? 'act' : (s === 'ready' || s === 'saving') ? 'done' : '');
+  const btn = rv('rvSave');
+  btn.disabled = !(s === 'ready' || s === 'error');
+  btn.textContent = s === 'error' ? 'Повторити' : s === 'saving' ? 'Зберігаємо…' : 'Зберегти';
 }
 
-let lastSegs = null;     // segments of the entry in the sheet, kept for retry
-let retryMode = false;   // saveBtn acts as "Повторити" after a processing error
+function rvGrow() {
+  const t = rv('rvText'), h = rv('rvTitle');
+  t.style.height = 'auto'; t.style.height = Math.max(120, t.scrollHeight) + 'px';
+  h.style.height = 'auto'; h.style.height = h.scrollHeight + 'px';
+}
 
-function showSheet(segs) {
-  overlay.classList.add('on');
-  sheet.classList.add('up');
-  saveBtn.classList.remove('on');
-  saveBtn.textContent = 'Зберегти';
-  retryMode = false;
+function rvShowText() {
+  const t = rv('rvText');
+  t.value = rvView === 'raw' ? rvRaw : rvEdited;
+  t.readOnly = rvView === 'raw';
+  rv('rvHint').textContent = rvView === 'raw'
+    ? 'Так Whisper почув запис. Лише для читання.'
+    : 'Цей текст піде в запис. Оригінал збережеться окремо.';
+  rvGrow();
+}
+
+function rvWave() {
+  rv('rvBars').innerHTML = Array.from({length: 38}, (_, i) =>
+    `<i style="height:${5 + Math.round(Math.abs(Math.sin(i * 1.7)) * 16 + (i % 3) * 2)}px"></i>`).join('');
+}
+
+function rvChip(kind, v, i) {
+  const l = kind === 'tags' ? { emoji: '', tone: 'tag' } : look(kind === 'emo' ? EMO_STATE_LOOK : MOOD_LOOK, v, '');
+  const cls = l.tone === 'ok' ? '' : l.tone;
+  return `<span class="rv-chip ${cls}">${l.emoji && kind !== 'tags' ? l.emoji + ' ' : ''}${esc(v)}<button class="rv-del" data-i="${i}" aria-label="Прибрати ${esc(v)}">×</button></span>`;
+}
+
+function rvRenderFields() {
+  const add = { mood: '+', emo: '+', tags: '+ тег' };
+  for (const [kind, id] of [['mood', 'rvMood'], ['emo', 'rvEmo'], ['tags', 'rvTags']]) {
+    const list = rvLists[kind];
+    rv(id).innerHTML = list.map((v, i) => rvChip(kind, v, i)).join('') +
+      (kind === 'emo' && list.length ? '' : `<button class="rv-add" aria-label="Додати">${add[kind]}</button>`);
+  }
+  const d = enrichedData || {};
+  const kv = (k, v) => `<div class="rv-kv"><span>${k}</span><span>${esc(v || '—')}</span></div>`;
+  rv('rvMoreBody').innerHTML = kv('Тип запису', d.entry_type) + kv('Час доби', d.time_of_day) +
+    kv('Фізичний стан', d.physical_state) + kv('Контекст', d.context) + kv('Проект', d.project);
+}
+
+function rvToggleMore() {
+  const open = rv('rvMoreBody').classList.toggle('open');
+  rv('rvMoreArr').textContent = open ? '▴' : '▾';
+}
+
+function rvStartAdd(box) {
+  const kind = box.dataset.list;
+  const btn = box.querySelector('.rv-add');
+  const input = document.createElement('input');
+  input.className = 'rv-add-in'; input.type = 'text'; input.enterKeyHint = 'done'; input.setAttribute('aria-label', 'Нове значення');
+  let done = false;
+  const commit = () => {
+    if (done) return; done = true;
+    const v = input.value.trim();
+    if (v && !rvLists[kind].some(x => x.toLowerCase() === v.toLowerCase())) rvLists[kind].push(v);
+    rvRenderFields();
+  };
+  input.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } };
+  input.onblur = commit;
+  btn.replaceWith(input);
+  input.focus();
+}
+
+document.getElementById('rvFields').addEventListener('click', e => {
+  const box = e.target.closest('[data-list]');
+  if (!box) return;
+  if (e.target.closest('.rv-del')) {
+    rvLists[box.dataset.list].splice(+e.target.closest('.rv-del').dataset.i, 1);
+    rvRenderFields();
+  } else if (e.target.closest('.rv-add')) {
+    rvStartAdd(box);
+  }
+});
+rv('rvSeg').addEventListener('click', e => {
+  const v = e.target.dataset.v;
+  if (!v || v === rvView) return;
+  if (rvView === 'edited') rvEdited = rv('rvText').value;
+  rvView = v;
+  [...rv('rvSeg').children].forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  rvShowText();
+});
+rv('rvText').addEventListener('input', () => { if (rvView === 'edited') rvEdited = rv('rvText').value; rvGrow(); });
+rv('rvTitle').addEventListener('input', rvGrow);
+rv('rvTitle').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });  // title is one logical line
+
+/* audio playback: the segments play one after another */
+let rvAudio = null, rvUrls = [];
+function rvStopAudio() {
+  if (rvAudio) { rvAudio.onended = null; rvAudio.pause(); rvAudio = null; }
+  rvUrls.forEach(u => URL.revokeObjectURL(u)); rvUrls = [];
+  rv('rvPlay').classList.remove('on');
+}
+function rvTogglePlay() {
+  if (rvAudio) { rvStopAudio(); return; }
+  const blobs = (lastSegs || []).map(x => x.blob).filter(Boolean);
+  if (!blobs.length) return;
+  rvUrls = blobs.map(b => URL.createObjectURL(b));
+  rv('rvPlay').classList.add('on');
+  let i = 0;
+  const next = () => {
+    if (i >= rvUrls.length) { rvStopAudio(); return; }
+    rvAudio = new Audio(rvUrls[i++]);
+    rvAudio.onended = next;
+    rvAudio.play().catch(e => { logError('play', e); rvStopAudio(); });
+  };
+  next();
+}
+
+/* screen transitions (the record button lives on home only) */
+function rvEnterScreen() {
+  const home = rv('home'), r = rv('review');
+  recOverlay.classList.remove('visible');
+  if (currentScreen !== 'review') {
+    home.classList.remove('active'); home.classList.add('out');
+    setTimeout(() => home.classList.remove('out'), 350);
+  }
+  r.classList.remove('out'); r.classList.add('active');
+  rv('review').querySelector('.rv-body').scrollTop = 0;
+  currentScreen = 'review'; prevScreen = 'home';
+  btnAnchor.classList.remove('visible');
+}
+function closeReview() {
+  const home = rv('home'), r = rv('review');
+  rvStopAudio();
+  r.classList.remove('active'); r.classList.add('out');
+  setTimeout(() => r.classList.remove('out'), 350);
+  home.style.transform = 'translateX(0)';
+  home.classList.remove('out'); home.classList.add('active');
+  currentScreen = 'home'; prevScreen = null;
+  btnAnchor.classList.add('visible');
+  recOverlay.classList.remove('visible');
+  rv('homeScroll').style.opacity = '';
+  rv('homeScroll').style.pointerEvents = '';
+  btnHint.classList.toggle('gone', hintHidden);
+}
+
+function openReview(segs, title) {
+  rvRun++;
+  rvStopAudio();
   lastSegs = segs;
   enrichedData = null;
-  document.getElementById('sheetTitle').textContent = 'Твій запис';
-  document.getElementById('sheetSub').textContent   = 'Зачекай кілька секунд…';
-  document.getElementById('statusIcon').classList.remove('done');
-  setStatus('<div class="spinner"></div>', 'Надсилаємо…');
-  transcribeAndEnrich(segs);
+  rvView = 'edited'; rvEdited = ''; rvRaw = '';
+  rvLists = { mood: [], emo: [], tags: [] };
+  rv('rvHdrT').textContent = title || 'Новий запис';
+  rv('rvHdrS').textContent = new Date().toLocaleString('uk', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+  rv('rvDur').textContent = fmt(elapsed);
+  rv('rvTitle').value = ''; rv('rvText').value = '';
+  [...rv('rvSeg').children].forEach(b => b.classList.toggle('on', b.dataset.v === 'edited'));
+  rv('rvMoreBody').classList.remove('open'); rv('rvMoreArr').textContent = '▾';
+  rvWave();
+  rvEnterScreen();
+  processEntry(segs);
 }
 
 async function transcribeSegment(seg) {
@@ -2124,20 +2371,26 @@ function sendSegment(seg) {
   seg.promise.catch(e => logError('segment', e));
 }
 
-async function transcribeAndEnrich(segs) {
+async function processEntry(segs) {
+  const run = ++rvRun;
+  enrichedData = null;
+  rvSetState('transcribing');
   try {
     if (!segs || !segs.length) throw new Error('Аудіо недоступне: iOS зупинила запис (дзвінок, блокування, перемикання застосунку). Запиши ще раз');
     const url = getBackendUrl();
 
-    setStatus('<div class="spinner"></div>', 'Транскрибується…');
     for (const seg of segs) {
       if (seg.text !== null) continue;
       if (seg.promise) { try { await seg.promise; } catch {} }
       if (seg.text === null) { seg.promise = null; await transcribeSegment(seg); }
     }
+    if (run !== rvRun) return;
     const text = segs.map(s => s.text).filter(Boolean).join(' ');
 
-    setStatus('<div class="spinner"></div>', 'Аналізується…');
+    // the transcript is already readable while the fields are still being worked out
+    rvRaw = rvEdited = text; rvView = 'raw';
+    rvShowText();
+    rvSetState('analyzing');
     const en = await fetch(`${url}/enrich`, {
       method: 'POST',
       headers: enrichHeaders(),
@@ -2147,25 +2400,23 @@ async function transcribeAndEnrich(segs) {
       const detail = await en.json().then(j => j.detail, () => '');
       throw new Error(`Enrich: ${en.status}${typeof detail === 'string' && detail ? ' · ' + detail : ''}`);
     }
+    const data = await en.json();
+    if (run !== rvRun) return;
 
-    enrichedData = { ...(await en.json()), rawText: text };
-
-    document.getElementById('sheetTitle').textContent = enrichedData.title || 'Готово';
-    document.getElementById('sheetSub').textContent   = 'Збережи запис';
-    document.getElementById('statusIcon').classList.add('done');
-    setStatus('<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4CAF72" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>', 'Транскрибовано ✓');
-    saveBtn.classList.add('on');
-
+    enrichedData = { ...data, rawText: text };
+    rvEdited = data.text || text;
+    rvView = 'edited';
+    rvLists = { mood: [...(data.mood || [])], emo: data.emotional_state ? [data.emotional_state] : [], tags: [...(data.tags || [])] };
+    [...rv('rvSeg').children].forEach(b => b.classList.toggle('on', b.dataset.v === 'edited'));
+    rv('rvTitle').value = data.title || '';
+    rvRenderFields();
+    rvSetState('ready');
+    rvShowText();
   } catch(err) {
-    logError('transcribeAndEnrich', err);
-    document.getElementById('sheetTitle').textContent = 'Помилка';
-    document.getElementById('sheetSub').textContent   = segs && segs.length ? 'Запис збережено на пристрої — спробуй ще раз' : 'Перевір backend URL в налаштуваннях';
-    setStatus('⚠️', err.message || 'Не вдалося');
-    if (segs && segs.length) {
-      retryMode = true;
-      saveBtn.textContent = 'Повторити';
-      saveBtn.classList.add('on');
-    }
+    if (run !== rvRun) return;
+    logError('processEntry', err);
+    rv('rvErrMsg').textContent = (segs && segs.length ? 'Аудіо збережено на пристрої — нічого не втрачено. ' : '') + (err.message || 'Не вдалося');
+    rvSetState('error');
   }
 }
 
@@ -2175,34 +2426,31 @@ async function recoverDraft() {
   const d = await draftLoad();
   if (!d || isRecording) return;
   elapsed = d.elapsed;
-  sheetDur.textContent = fmt(elapsed);
-  buildMiniWave();
-  showSheet(d.segments);
-  document.getElementById('sheetTitle').textContent = 'Відновлений запис';
-}
-
-function hideSheet() {
-  overlay.classList.remove('on');
-  sheet.classList.remove('up');
-  recOverlay.classList.remove('visible');
-  document.getElementById('homeScroll').style.opacity = '';
-  document.getElementById('homeScroll').style.pointerEvents = '';
-  btnHint.classList.toggle('gone', hintHidden);
+  openReview(d.segments, 'Відновлений запис');
 }
 
 async function saveEntry() {
-  if (retryMode && saveBtn.classList.contains('on')) { showSheet(lastSegs); return; }
-  if (!saveBtn.classList.contains('on') || !enrichedData) return;
-  saveBtn.textContent = 'Зберігаємо…';
-  saveBtn.classList.remove('on');
+  const state = rv('review').dataset.s;
+  if (state === 'error') { processEntry(lastSegs); return; }
+  if (state !== 'ready' || !enrichedData) return;
+
+  if (rvView === 'edited') rvEdited = rv('rvText').value;
+  const text = rvEdited.trim();
+  if (!text) { rvView = 'edited'; rvShowText(); rv('rvText').focus(); return; }
 
   const now = new Date();
   const payload = {
     ...enrichedData,
+    title:           rv('rvTitle').value.trim() || enrichedData.title || 'Запис',
+    text,
+    mood:            rvLists.mood,
+    tags:            rvLists.tags,
+    emotional_state: rvLists.emo[0] || null,
     duration:    fmt(elapsed),
     date_label:  now.toLocaleString('uk',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}),
     month_label: monthLabel(now),
   };
+  rvSetState('saving');
 
   try {
     const res = await fetch(`${getBackendUrl()}/save`, {
@@ -2227,14 +2475,36 @@ async function saveEntry() {
   draftClear();
   lastSegs = null;
   enrichedData = null;
-  saveBtn.textContent = 'Зберегти';
-  hideSheet();
+  rvRun++;
+  closeReview();
   renderHome();
   renderList(ENTRIES);
 }
 
-function reRecord()    { hideSheet(); startRecording(); }
-function discardEntry(){ draftClear(); lastSegs = null; hideSheet(); }
+/* ✕ and «Переписати» both throw the recording away, so both ask first */
+function askDiscard(mode) {
+  rvDiscardMode = mode;
+  const re = mode === 'rerecord';
+  rv('dcTitle').textContent = re ? 'Переписати запис?' : 'Видалити цей запис?';
+  rv('dcSub').textContent   = re ? 'Поточні аудіо й текст зникнуть, запис почнеться з нуля.' : 'Аудіо й текст зникнуть з пристрою. Повернути їх буде неможливо.';
+  rv('dcOk').textContent    = re ? 'Переписати' : 'Видалити';
+  overlay.classList.add('on');
+  rv('discardSheet').classList.add('up');
+}
+function closeDiscard() {
+  overlay.classList.remove('on');
+  rv('discardSheet').classList.remove('up');
+}
+function confirmDiscard() {
+  const re = rvDiscardMode === 'rerecord';
+  closeDiscard();
+  rvRun++;
+  draftClear();
+  lastSegs = null;
+  enrichedData = null;
+  closeReview();
+  if (re) startRecording();
+}
 
 /* ── Show All ──────────────────────────────────────── */
 document.getElementById('showAll').addEventListener('click', () => {
