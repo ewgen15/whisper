@@ -55,7 +55,7 @@ docker run --rm -v "$PWD/backend:/app" -w /app python:3.11-slim sh -c \
 ```
 
 - **UI-тести** (Playwright/WebKit, в'юпорт iPhone 14, бекенд підмінений): `pip install -r ui-tests/requirements.txt && playwright install webkit && cd ui-tests && pytest -q -p no:cacheprovider --browser webkit`. Їх виконує джоб `ui` у CI. Реальний iOS (Wake Lock, мікрофон, safe-area) вони не перевіряють.
-- **Версія фронтенда:** після будь-якої зміни `docs/index.html` запускай `python3 scripts/stamp-version.py` — він пише `APP_VERSION` (дата + хеш вмісту), що видно під лого «Diary» і в Діагностиці. Pre-push і CI (`--check`) падають, якщо штамп застарів.
+- **Версія фронтенда:** після будь-якої зміни `docs/index.html` запускай `python3 scripts/stamp-version.py` — він пише `APP_VERSION` (дата + хеш вмісту), що видно під лого «Whisper» і в Діагностиці. Pre-push і CI (`--check`) падають, якщо штамп застарів.
 - `.githooks/pre-push` запускає швидкі перевірки. Підключення на новій машині: `git config core.hooksPath .githooks`.
 - CI: `.github/workflows/ci.yml` (ruff + pytest на 3.11, синтаксис фронтенда, валідність manifest). `deploy-backend.yml` викликає CI першим кроком (`needs: ci`) — червоний CI = немає деплою.
 - Додаючи бекенд-логіку, додавай тест у `backend/tests/` (зовнішні виклики мокай — фікстури `sb`, `oai`, `notion` у `conftest.py`).

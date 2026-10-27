@@ -1,4 +1,4 @@
-# Diary App — UX Flow & Screen Specs
+# Whisper App — UX Flow & Screen Specs
 
 > ТЗ для дизайн-макетів. MVP: локальне зберігання, без Notion sync.
 
@@ -44,7 +44,7 @@
 ```
 ┌──────────────────────────────┐
 │                              │  ← safe area top
-│  Diary              [⚙]     │  ← назва + іконка налаштувань
+│  Whisper            [⚙]     │  ← назва + іконка налаштувань
 │                              │
 │ ┌──────────────────────────┐ │
 │ │  Розчарування через...   │ │  ← картка запису
@@ -70,7 +70,7 @@
 ### Компоненти
 
 **Хедер**
-- Назва: "Diary" — Cormorant Garamond, 1rem, letter-spacing 0.26em, uppercase
+- Назва: "Whisper" — Cormorant Garamond, 1rem, letter-spacing 0.26em, uppercase
 - Іконка ⚙ (налаштування) — справа, з'являється в майбутній фазі
 
 **Картка запису**

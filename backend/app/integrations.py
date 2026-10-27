@@ -6,7 +6,7 @@ from openai import OpenAI
 
 from .storage import get_client
 
-log = logging.getLogger("diary.integrations")
+log = logging.getLogger("whisper.integrations")
 
 NOTION_DB_ID = os.environ.get("NOTION_DATABASE_ID", "1c745674-5b78-80af-aca8-c828db2feb60")
 EMBEDDING_MODEL = "text-embedding-ada-002"

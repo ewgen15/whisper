@@ -17,7 +17,7 @@ from .storage import (
     delete_entry, get_entries, get_entry, get_stats_rows, save_entry, set_entry_links, update_entry,
 )
 
-app = FastAPI(title="Diary Backend", version="0.1.0")
+app = FastAPI(title="Whisper Backend", version="0.1.0")
 
 # Pure ASGI middleware — intercepts http.response.start at the wire level,
 # so it sees OPTIONS preflight responses that CORSMiddleware emits directly
