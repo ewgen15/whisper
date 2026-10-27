@@ -53,6 +53,47 @@ def test_patch_updates_only_allowed_fields_and_syncs(monkeypatch):
     assert r.json()["title"] == "new" and r.json()["sync"] == {"notion": "ok"}
 
 
+def _patch_with_stored(monkeypatch, stored, body):
+    seen = {}
+    monkeypatch.setattr(main, "get_entry", lambda i: {"id": i, **stored})
+
+    def fake_update(i, changes):
+        seen["changes"] = changes
+        return {"id": i, **stored, **changes}
+
+    monkeypatch.setattr(main, "update_entry", fake_update)
+    monkeypatch.setattr(main, "update_remote", lambda row: {})
+    return client.patch("/entries/3", json=body), seen
+
+
+def test_patch_scales_rederives_the_state_from_stored_and_new_values(monkeypatch):
+    r, seen = _patch_with_stored(monkeypatch, {"valence": 1, "energy": 1, "control": 1, "emotional_state": "Позитивний"},
+                                 {"control": -2, "emotional_state": "Поганий"})
+    assert r.status_code == 200
+    # valence and energy stay as stored: still pleasant and energised, whatever label the client sent
+    assert seen["changes"] == {"control": -2, "emotional_state": "Позитивний"}
+
+
+def test_patch_scales_to_an_unpleasant_state_without_control(monkeypatch):
+    r, seen = _patch_with_stored(monkeypatch, {"valence": 1, "energy": 0, "control": 1, "emotional_state": "Гарний"},
+                                 {"valence": -1, "control": -2})
+    assert seen["changes"] == {"valence": -1, "control": -2, "emotional_state": "Пригнічений"}
+    assert r.json()["emotional_state"] == "Пригнічений"
+
+
+def test_patch_scales_on_an_old_entry_needs_all_three_before_a_state_appears(monkeypatch):
+    r, seen = _patch_with_stored(monkeypatch, {"emotional_state": "Нейтральний"}, {"valence": 1})
+    assert seen["changes"] == {"valence": 1}  # energy/control unknown: the old label stays
+    r, seen = _patch_with_stored(monkeypatch, {"emotional_state": "Нейтральний"}, {"valence": 2, "energy": 2, "control": 0})
+    assert seen["changes"]["emotional_state"] == "Позитивний"
+
+
+@pytest.mark.parametrize("bad", [9, -3, "high", None, 1.5, True])
+def test_patch_rejects_invalid_scales(monkeypatch, bad):
+    r, _ = _patch_with_stored(monkeypatch, {"valence": 0, "energy": 0, "control": 0}, {"energy": bad})
+    assert r.status_code == 422 and "energy" in r.json()["detail"]
+
+
 def test_patch_404_for_unknown_entry(monkeypatch):
     monkeypatch.setattr(main, "get_entry", lambda i: None)
     assert client.patch("/entries/3", json={"title": "x"}).status_code == 404

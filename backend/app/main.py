@@ -13,7 +13,7 @@ from .enrichment import EDIT_LEVELS, PROVIDERS, MissingKeyError, enrich
 from .transcription import transcribe
 from .integrations import sync_entry, update_remote, delete_remote
 from .ratelimit import RateLimiter
-from .scales import apply_scales
+from .scales import SCALES, apply_scales, clean_scale, derive_state
 from .stats import build_stats
 from .storage import (
     delete_entry, get_entries, get_entry, get_stats_rows, save_entry, set_entry_links, update_entry,
@@ -205,7 +205,7 @@ async def stats():
 # Columns the client may edit; ids, links and timestamps are never writable.
 EDITABLE_FIELDS = {
     "title", "text", "mood", "emotional_state", "physical_state",
-    "context", "project", "tags", "entry_type",
+    "context", "project", "tags", "entry_type", *SCALES,
 }
 
 
@@ -219,6 +219,19 @@ async def patch_entry(entry_id: int, changes: dict):
     for key in ("title", "text"):
         if key in changes and not str(changes[key] or "").strip():
             raise HTTPException(status_code=422, detail=f"{key} cannot be empty")
+    if any(k in changes for k in SCALES):
+        # The label always follows the numbers: merge with the stored scales, validate, re-derive.
+        current = await run_in_threadpool(get_entry, entry_id)
+        # user input is strict (no rounding of 1.5); stored values were already validated
+        merged = {k: (clean_scale(changes[k]) if isinstance(changes[k], int) else None) if k in changes
+                  else clean_scale(current.get(k)) for k in SCALES}
+        bad = [k for k in SCALES if k in changes and merged[k] is None]
+        if bad:
+            raise HTTPException(status_code=422, detail=f"{', '.join(bad)} must be an integer from -2 to 2")
+        changes.update({k: merged[k] for k in SCALES if k in changes})
+        state = derive_state(*(merged[k] for k in SCALES))
+        if state is not None:
+            changes["emotional_state"] = state
     row = await run_in_threadpool(update_entry, entry_id, changes)
     if row is None:
         raise HTTPException(status_code=404, detail="Entry not found")

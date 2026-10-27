@@ -17,7 +17,7 @@
   --plum-mid:    #3A1A50;
   --cream:       #FFF5EE;
   --card-bg:     rgba(255, 248, 244, 0.80);
-  --sheet-bg:    rgba(255, 250, 247, 0.97);
+  --sheet-bg:    rgb(255, 250, 247);  /* opaque: at 0.97 the screen underneath still showed through as sharp ghost text */
   --ring-idle:   rgba(255, 185, 200, 0.38);
   --ring-active: rgba(217, 58, 78, 0.34);
   --rec:         #D93A4E;
@@ -503,17 +503,6 @@ body.has-banner .hdr {
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   opacity: 0.85;
 }
-.mini-bars {
-  flex: 1; display: flex; align-items: center; gap: 2px;
-  height: 22px; overflow: hidden; max-width: 80px;
-}
-.mini-bar {
-  flex: 1; border-radius: 2px; background: var(--plum); opacity: 0.22; min-height: 3px;
-}
-.sheet-dur {
-  font-size: 0.78rem; opacity: 0.5;
-  font-variant-numeric: tabular-nums; white-space: nowrap;
-}
 .diag-badge {
   font-size: 0.7rem; font-weight: 500; letter-spacing: 0.02em;
   padding: 3px 8px; border-radius: 20px; white-space: nowrap;
@@ -534,15 +523,14 @@ body.has-banner .hdr {
 
 /* ── Review screen (after recording) ──────────────── */
 #review .hdr { padding-bottom: 8px; }
-.rv-x-btn, .rv-play {
+.rv-play {
   width: 40px; height: 40px; border-radius: 50%; border: none; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
 }
-.rv-x-btn { background: rgba(255,248,244,0.55); color: var(--plum); }
 .rv-hdr-mid { text-align: center; }
-.rv-hdr-t { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.55; }
+.rv-hdr-t { font-size: 0.85rem; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.65; }
 .rv-hdr-s { font-size: 0.68rem; opacity: 0.45; margin-top: 2px; }
-.rv-hdr-r { width: 40px; flex-shrink: 0; }
+.rv-hdr-r { width: 38px; flex-shrink: 0; }
 .rv-body { flex: 1; overflow-y: auto; padding-bottom: 24px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .rv-body::-webkit-scrollbar { display: none; }
 .rv-audio { display: flex; align-items: center; gap: 10px; background: var(--card-bg); border-radius: 16px; padding: 10px 14px; }
@@ -651,81 +639,59 @@ body.has-banner .hdr {
   letter-spacing: 0.04em; color: var(--plum); opacity: 0.28; cursor: pointer;
 }
 
-.hdr-actions { margin-left: auto; display: flex; gap: 4px; }
-.hdr-act {
-  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
-  background: none; border: none; color: var(--plum); opacity: 0.6; cursor: pointer;
+/* One icon-button style for every header: home (stats, settings), detail (edit, delete), review (close) */
+.hdr-actions { margin-left: auto; display: flex; gap: 8px; }
+.hdr-btn {
+  width: 38px; height: 38px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 11px; cursor: pointer; color: var(--plum);
+  background: rgba(255,255,255,0.52); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
 }
-.hdr-act:active { opacity: 1; }
-.hdr-act.danger { color: rgba(140,70,30,1); }
+.hdr-btn:active { opacity: 0.7; }
+.hdr-btn.danger { color: rgb(140,70,30); }
+.hdr-spacer { width: 52px; flex-shrink: 0; }  /* balances the back button so the centred title stays centred */
 .edit-sheet { max-height: 88vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .f-label { font-size:0.7rem; letter-spacing:0.08em; text-transform:uppercase; opacity:0.4; margin:0 0 6px; }
+.f-label.flush { margin: 0; }
+.f-hint { font-size: 0.7rem; opacity: 0.35; margin-top: 6px; }
+.f-input.flush { margin-bottom: 0; }
+.f-input.stacked { margin: 8px 0 0; }
 .f-input {
   width:100%; background:rgba(30,16,40,0.05); border:1.5px solid rgba(30,16,40,0.12);
   border-radius:12px; padding:12px 14px; margin-bottom:14px; font-family:'Fixel Text',sans-serif;
   font-size:16px; color:#1E1028; outline:none; resize:vertical;  /* 16px: no iOS zoom on focus */
 }
-.det-text { white-space: pre-wrap; }
-
 #settingsSheet { max-height: 92dvh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .errlog-box { font-family: ui-monospace, Menlo, monospace; font-size: 0.66rem; line-height: 1.45; max-height: 170px; overflow-y: auto; background: rgba(30,16,40,0.05); border-radius: 10px; padding: 8px 10px; white-space: pre-wrap; word-break: break-word; margin-top: 8px; }
 .det-tech { margin-top: 18px; font-size: 0.72rem; opacity: 0.55; }
 .det-tech summary { cursor: pointer; padding: 6px 0; }
+.mini-btn.wide { width: 100%; padding: 9px 12px; margin-bottom: 10px; font-size: 0.78rem; opacity: 0.8; }
 .mini-btn { background: rgba(30,16,40,0.06); border: none; border-radius: 8px; padding: 6px 12px; font-size: 0.72rem; font-family: 'Fixel Text', sans-serif; color: inherit; cursor: pointer; }
 
 
 .app-ver { display: block; margin-top: 4px; font-size: 0.55rem; letter-spacing: 0.08em; opacity: 0.45; font-weight: 400; text-transform: none; }
-/* ── Detail screen ────────────────────────────────── */
-#detail .hdr { justify-content: flex-start; gap: 0; }
-#detail .hdr-back { flex: 0 0 auto; }
-
+/* ── Detail screen: the review screen's paper card, read-only ───────── */
+#detail .hdr { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; }  /* grid keeps the title truly centred */
+#detail .hdr-back { justify-self: start; }
+#detail .hdr-actions { justify-self: end; margin-left: 0; }
 .detail-body {
   flex: 1; overflow-y: auto; padding-bottom: 48px;
   -webkit-overflow-scrolling: touch; scrollbar-width: none;
 }
 .detail-body::-webkit-scrollbar { display: none; }
-
-.det-eyebrow {
-  font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase;
-  opacity: 0.45; margin-bottom: 7px;
-}
-.det-title {
-  font-family: 'Fixel Display', sans-serif;
-  font-size: clamp(1.6rem, 7vw, 2.2rem);
-  font-weight: 800; line-height: 1.15;
-  text-wrap: balance; margin-bottom: 16px;
-  letter-spacing: -0.01em;
-}
-.det-pills { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; }
-.pill {
-  font-size: 0.72rem; padding: 5px 12px; border-radius: 20px; letter-spacing: 0.02em;
-}
-.pill-bad  { background: rgba(170,90,50,0.1);  color: rgba(140,70,30,1); }
-.pill-ok   { background: rgba(30,16,40,0.07);  color: var(--plum); }
-.pill-good { background: rgba(70,150,90,0.1);  color: rgba(50,115,65,1); }
-.pill-warn { background: rgba(205,150,40,0.15); color: #8A6416; }
-
-.divider { height: 1px; background: rgba(30,16,40,0.08); margin: 16px 0; }
-
-.det-text {
-  font-size: 0.92rem; line-height: 1.78; font-weight: 300;
-  opacity: 0.82; margin-bottom: 4px;
-}
-.det-label {
-  font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
-  opacity: 0.38; margin-top: 14px; margin-bottom: 3px;
-}
-.det-value { font-size: 0.88rem; opacity: 0.72; }
-.det-tags  { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
-
-.det-audio {
-  display: flex; align-items: center; gap: 10px;
-  background: rgba(30,16,40,0.05);
-  border-radius: 12px; padding: 11px 14px; margin-top: 18px;
-}
-.det-date {
-  font-size: 0.75rem; opacity: 0.32; margin-top: 22px; text-align: center;
-}
+.rv-title.ro, .rv-text.ro { cursor: default; }
+.rv-text.ro { min-height: 0; white-space: pre-wrap; margin-top: 12px; }
+.rv-none { font-size: 0.86rem; opacity: 0.4; }
+.sc-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 0.86rem; }
+.sc-row b { font-weight: 600; width: 92px; flex-shrink: 0; }
+.sc-track { display: flex; gap: 4px; flex: 0 0 76px; }
+.sc-track i { flex: 1; height: 6px; border-radius: 3px; background: rgba(30,16,40,0.12); }
+.sc-track i.on { background: rgba(123,111,168,0.9); }
+.sc-val { margin-left: auto; text-align: right; font-size: 0.8rem; opacity: 0.75; }
+.sc-val small { display: block; font-size: 0.68rem; opacity: 0.6; }
+.rv-bars i.p { opacity: 0.8; }
+.rv-play.busy { opacity: 0.5; }
+.det-msg { font-size: 0.74rem; color: rgb(140,70,30); margin-top: 8px; }
+.edit-sheet .rv-derived { margin: 14px 0 20px; }
 
 /* ── List screen ──────────────────────────────────── */
 .list-search {
@@ -808,11 +774,11 @@ body.has-banner .hdr {
 <div class="screen active" id="home">
   <div class="hdr">
     <span class="hdr-logo">Whisper<span class="app-ver" id="appVer"></span></span>
-<div style="display:flex;gap:8px">
-    <button onclick="openStats()" style="background:rgba(255,255,255,.52);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:none;cursor:pointer;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0" aria-label="Статистика">
+<div class="hdr-actions">
+    <button class="hdr-btn" onclick="openStats()" aria-label="Статистика">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--plum)"><rect x="3" y="12" width="4" height="9" rx="1.2"/><rect x="10" y="6" width="4" height="15" rx="1.2"/><rect x="17" y="9" width="4" height="12" rx="1.2"/></svg>
     </button>
-    <button onclick="openSettings()" style="background:rgba(255,255,255,.52);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:none;cursor:pointer;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0" aria-label="Налаштування">
+    <button class="hdr-btn" onclick="openSettings()" aria-label="Налаштування">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--plum)">
         <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.92c.04-.34.07-.68.07-1.08s-.03-.74-.07-1.08l2.32-1.82c.21-.16.27-.45.13-.69l-2.2-3.82c-.13-.24-.42-.32-.66-.24l-2.74 1.1c-.57-.44-1.18-.8-1.86-1.06L14.05 1.5c-.05-.27-.29-.5-.59-.5h-4.4c-.3 0-.54.23-.59.5L8 4.09c-.68.26-1.29.62-1.86 1.06L3.4 4.05c-.24-.08-.53 0-.66.24L.54 8.11c-.14.24-.08.53.13.69l2.32 1.82c-.04.34-.07.68-.07 1.08s.03.74.07 1.08L.67 14.6c-.21.16-.27.45-.13.69l2.2 3.82c.13.24.42.32.66.24l2.74-1.1c.57.44 1.18.8 1.86 1.06l.47 2.59c.05.27.29.5.59.5h4.4c.3 0 .54-.23.59-.5l.47-2.59c.68-.26 1.29-.62 1.86-1.06l2.74 1.1c.24.08.53 0 .66-.24l2.2-3.82c.14-.24.08-.53-.13-.69l-2.32-1.82z"/>
       </svg>
@@ -839,12 +805,13 @@ body.has-banner .hdr {
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       Назад
     </button>
+    <div class="rv-hdr-mid"><div class="rv-hdr-t">Запис</div><div class="rv-hdr-s" id="detHdrS"></div></div>
     <div class="hdr-actions">
-      <button class="hdr-act" aria-label="Редагувати" onclick="openEdit()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+      <button class="hdr-btn" aria-label="Редагувати" onclick="openEdit()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
       </button>
-      <button class="hdr-act danger" aria-label="Видалити" onclick="deleteCurrent()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      <button class="hdr-btn danger" aria-label="Видалити" onclick="deleteCurrent()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
       </button>
     </div>
   </div>
@@ -859,7 +826,7 @@ body.has-banner .hdr {
       Назад
     </button>
     <span class="hdr-title-center">Записи</span>
-    <span style="width:52px"></span>
+    <span class="hdr-spacer"></span>
   </div>
   <div class="list-search">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="opacity:.4;flex-shrink:0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -876,7 +843,7 @@ body.has-banner .hdr {
       Назад
     </button>
     <span class="hdr-title-center">Статистика</span>
-    <span style="width:52px"></span>
+    <span class="hdr-spacer"></span>
   </div>
   <div class="list-scroll" id="statsBody"><div class="st-msg">Завантаження…</div></div>
 </div>
@@ -884,7 +851,7 @@ body.has-banner .hdr {
 <!-- S2b: Review (after recording) -->
 <div class="screen" id="review" data-s="transcribing">
   <div class="hdr">
-    <button class="rv-x-btn" id="rvClose" aria-label="Видалити запис" onclick="askDiscard('delete')">
+    <button class="hdr-btn" id="rvClose" aria-label="Видалити запис" onclick="askDiscard('delete')">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
     </button>
     <div class="rv-hdr-mid">
@@ -998,6 +965,9 @@ body.has-banner .hdr {
   <input id="editTags" class="f-input" type="text">
   <div class="f-label">Настрій (через кому)</div>
   <input id="editMood" class="f-input" type="text">
+  <div class="f-label">Оцінка стану</div>
+  <div id="edScales"></div>
+  <div class="rv-derived" id="edDerived"></div>
   <div class="sheet-btns">
     <button class="btn-sec" onclick="closeEdit()">Скасувати</button>
     <button class="btn-pri on" id="editSaveBtn" onclick="saveEdit()">Зберегти</button>
@@ -1010,24 +980,24 @@ body.has-banner .hdr {
   <div class="sheet-handle"></div>
   <div class="sheet-head">
     <div class="sheet-title">Налаштування</div>
-    <div class="sheet-sub">Адреса бекенду для транскрипції</div>
+    <div class="sheet-sub">Бекенд, мова запису й обробка тексту</div>
   </div>
   <div style="margin-bottom:12px">
-    <div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.4;margin-bottom:6px">Backend URL</div>
+    <div class="f-label">Адреса бекенду</div>
     <input id="backendInput" type="url" inputmode="url"
-      style="width:100%;background:rgba(30,16,40,0.05);border:1.5px solid rgba(30,16,40,0.12);border-radius:12px;padding:12px 14px;font-family:'Fixel Text',sans-serif;font-size:0.88rem;color:#1E1028;outline:none"
+      class="f-input flush"
       placeholder="https://homeserver.tail54ecf6.ts.net">
   </div>
   <div style="margin-bottom:16px">
-    <div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.4;margin-bottom:6px">API Key</div>
+    <div class="f-label">Ключ API</div>
     <input id="apiKeyInput" type="password"
-      style="width:100%;background:rgba(30,16,40,0.05);border:1.5px solid rgba(30,16,40,0.12);border-radius:12px;padding:12px 14px;font-family:'Fixel Text',sans-serif;font-size:0.88rem;color:#1E1028;outline:none"
+      class="f-input flush"
       placeholder="••••••••••••">
-    <div style="font-size:0.7rem;opacity:0.35;margin-top:6px">Секретний ключ — має збігатись з API_KEY на сервері.</div>
+    <div class="f-hint">Секретний ключ — має збігатись з API_KEY на сервері.</div>
   </div>
 
   <div style="margin-bottom:16px">
-    <div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.4;margin-bottom:6px">Мова запису</div>
+    <div class="f-label">Мова запису</div>
     <div class="seg" id="segLang">
       <button data-v="auto" onclick="setPref('lang','auto')">Авто</button>
       <button data-v="uk" onclick="setPref('lang','uk')">Укр</button>
@@ -1035,39 +1005,37 @@ body.has-banner .hdr {
     </div>
   </div>
   <div style="margin-bottom:16px">
-    <div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.4;margin-bottom:6px">Редагування тексту</div>
+    <div class="f-label">Редагування тексту</div>
     <div class="seg" id="segEdit">
       <button data-v="none" onclick="setPref('edit','none')">Не чіпати</button>
       <button data-v="light" onclick="setPref('edit','light')">Легке</button>
       <button data-v="full" onclick="setPref('edit','full')">Повне</button>
     </div>
-    <div style="font-size:0.7rem;opacity:0.35;margin-top:6px" id="segEditHint"></div>
+    <div class="f-hint" id="segEditHint"></div>
   </div>
 
   <div style="margin-bottom:16px">
-    <div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.4;margin-bottom:6px">Модель для обробки</div>
+    <div class="f-label">Модель для обробки</div>
     <div class="seg" id="segProvider">
       <button data-v="openai" onclick="setPref('provider','openai')">OpenAI</button>
       <button data-v="anthropic" onclick="setPref('provider','anthropic')">Claude</button>
     </div>
-    <div style="font-size:0.7rem;opacity:0.35;margin-top:6px" id="segProviderHint"></div>
-    <input id="openaiKeyInput" type="password" autocomplete="off" style="width:100%;background:rgba(30,16,40,0.05);border:1.5px solid rgba(30,16,40,0.12);border-radius:12px;padding:12px 14px;font-family:'Fixel Text',sans-serif;font-size:0.88rem;color:#1E1028;outline:none;margin-top:10px"
+    <div class="f-hint" id="segProviderHint"></div>
+    <input id="openaiKeyInput" type="password" autocomplete="off" class="f-input stacked"
       placeholder="OpenAI ключ (необов'язково)">
-    <input id="anthropicKeyInput" type="password" autocomplete="off" style="width:100%;background:rgba(30,16,40,0.05);border:1.5px solid rgba(30,16,40,0.12);border-radius:12px;padding:12px 14px;font-family:'Fixel Text',sans-serif;font-size:0.88rem;color:#1E1028;outline:none;margin-top:8px"
+    <input id="anthropicKeyInput" type="password" autocomplete="off" class="f-input stacked"
       placeholder="Anthropic ключ (необов'язково)">
-    <div style="font-size:0.7rem;opacity:0.35;margin-top:6px">Порожнє поле — береться ключ із сервера. Ключ зберігається лише на цьому пристрої й іде на бекенд з кожним запитом обробки.</div>
+    <div class="f-hint">Порожнє поле — береться ключ із сервера. Ключ зберігається лише на цьому пристрої й іде на бекенд з кожним запитом обробки.</div>
   </div>
 
   <div style="margin-bottom:20px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-      <div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.4">Діагностика</div>
-      <button onclick="runDiagnostics()" id="diagBtn"
-        style="background:rgba(30,16,40,0.06);border:none;border-radius:8px;padding:5px 12px;font-size:0.72rem;font-family:'Fixel Text',sans-serif;cursor:pointer;opacity:0.7">
+      <div class="f-label flush">Діагностика</div>
+      <button class="mini-btn" onclick="runDiagnostics()" id="diagBtn">
         Перевірити
       </button>
     </div>
-    <button onclick="forceUpdate()" id="updBtn"
-      style="width:100%;background:rgba(30,16,40,0.06);border:none;border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:0.78rem;font-family:'Fixel Text',sans-serif;cursor:pointer;opacity:0.8">
+    <button class="mini-btn wide" onclick="forceUpdate()" id="updBtn">
       Оновити застосунок (ключ і налаштування лишаються)
     </button>
     <div id="diagUrlLine" style="font-size:0.68rem;opacity:0.35;margin-bottom:10px;word-break:break-all"></div>
@@ -1077,7 +1045,7 @@ body.has-banner .hdr {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(30,16,40,0.4)" stroke-width="2" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
         </div>
         <div style="flex:1">
-          <div class="row-label">Health</div>
+          <div class="row-label">Сервер</div>
           <div id="di-health" style="font-size:0.72rem;opacity:0.4;margin-top:1px">—</div>
         </div>
         <div id="di-health-badge" class="diag-badge"></div>
@@ -1087,7 +1055,7 @@ body.has-banner .hdr {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(30,16,40,0.4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         </div>
         <div style="flex:1">
-          <div class="row-label">Entries</div>
+          <div class="row-label">Записи</div>
           <div id="di-entries" style="font-size:0.72rem;opacity:0.4;margin-top:1px">—</div>
         </div>
         <div id="di-entries-badge" class="diag-badge"></div>
@@ -1137,7 +1105,7 @@ body.has-banner .hdr {
 
   <div style="margin-bottom:20px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-      <div id="errlogTitle" style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.4">Журнал помилок</div>
+      <div id="errlogTitle" class="f-label flush">Журнал помилок</div>
       <div style="display:flex;gap:6px">
         <button class="mini-btn" id="errlogToggle" onclick="toggleErrLog()">Показати</button>
         <button class="mini-btn" onclick="copyErrLog()" id="errlogCopy">Скопіювати</button>
@@ -1149,7 +1117,7 @@ body.has-banner .hdr {
 
   <div class="sheet-btns">
     <button class="btn-sec" onclick="closeSettings()">Закрити</button>
-    <button class="btn-pri on" onclick="saveSettings()">Зберегти URL</button>
+    <button class="btn-pri on" onclick="saveSettings()">Зберегти</button>
   </div>
 </div>
 
@@ -1168,7 +1136,7 @@ function fitScreenHeight() {
 }
 fitScreenHeight();
 addEventListener('resize', fitScreenHeight);
-const APP_VERSION = '2026-10-27.c5af7f';
+const APP_VERSION = '2026-10-27.dfbd34';
 
 /* ── Error log (last 20, localStorage) ────────────── */
 const ERRLOG_KEY = 'diary_errlog';
@@ -1278,6 +1246,8 @@ function esc(v) {
   return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+function scaleInt(v) { return Number.isInteger(v) && v >= -2 && v <= 2 ? v : null; }
+
 function normalizeEntry(e) {
   return {
     id:             e.id,
@@ -1295,6 +1265,9 @@ function normalizeEntry(e) {
     date:           e.date_label    || new Date(e.created_at).toLocaleString('uk', {day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}),
     month:          e.month_label   || '',
     createdAt:      e.created_at    || null,
+    valence:        scaleInt(e.valence), energy: scaleInt(e.energy), control: scaleInt(e.control),
+    predValence:    scaleInt(e.pred_valence), predEnergy: scaleInt(e.pred_energy), predControl: scaleInt(e.pred_control),
+    audioPath:      e.audio_path || null,
     notionId:       e.notion_page_id || null,
     docId:          e.document_id   || null,
     local:          !!(e._local || e.local),
@@ -1343,7 +1316,7 @@ const overlay    = document.getElementById('overlay');
 
 /* ── Navigation ────────────────────────────────────── */
 function showScreen(id) {
-  const prev = document.getElementById(prevScreen || currentScreen);
+  const prev = document.getElementById(currentScreen);  // the screen being left (prevScreen would leave the list showing under a detail)
   const next = document.getElementById(id);
   if (prev && prev !== next) {
     prev.classList.remove('active');
@@ -1358,6 +1331,7 @@ function showScreen(id) {
 }
 
 function goBack() {
+  if (currentScreen === 'detail') detStopAudio();
   const back = prevScreen || 'home';
   const curr = document.getElementById(currentScreen);
   const prev = document.getElementById(back);
@@ -1452,7 +1426,7 @@ function _diagSetRender() {
   if (hasErr) {
     _diagSet('render', _lastLoadError, 'err', '#A33030', '✗');
   } else if (count !== null) {
-    _diagSet('render', `${count} в ENTRIES[]`, 'ok', '#2D7A48', '✓');
+    _diagSet('render', `${count} у списку на екрані`, 'ok', '#2D7A48', '✓');
   } else {
     _diagSet('render', 'не запускався', '', 'rgba(30,16,40,0.4)', '—');
   }
@@ -1791,49 +1765,107 @@ function moodChip(m) {
   return `<span class="mood-chip ${l.tone === 'ok' ? '' : l.tone}">${l.emoji ? l.emoji + ' ' : ''}${esc(m)}</span>`;
 }
 
+// Saved-entry audio: downloaded with the API key (an <audio src> cannot send headers) and played from a blob.
+const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=';
+let detAudio = null, detUrl = null;
+function detMsg(t) { const m = document.getElementById('detMsg'); if (m) { m.textContent = t; m.hidden = !t; } }
+function detStopAudio() {
+  if (detAudio) { detAudio.onended = detAudio.ontimeupdate = null; detAudio.pause(); detAudio = null; }
+  if (detUrl) { URL.revokeObjectURL(detUrl); detUrl = null; }
+  const b = document.getElementById('detPlay');
+  if (b) b.classList.remove('on', 'busy');
+  document.querySelectorAll('#detBars i.p').forEach(i => i.classList.remove('p'));
+}
+async function detTogglePlay() {
+  if (detAudio) { detStopAudio(); return; }  // a second tap stops, also while the file is still downloading
+  const e = currentEntry();
+  if (!e || !e.audioPath) return;
+  detMsg('');
+  if (!document.createElement('audio').canPlayType('audio/ogg; codecs="opus"')) {
+    detMsg('Цей пристрій не відтворює формат запису (Opus).');
+    return;
+  }
+  const btn = document.getElementById('detPlay');
+  const a = new Audio(SILENT_WAV);
+  a.play().catch(() => {});  // started inside the tap: iOS then lets this element play the real file after the download
+  detAudio = a;
+  btn.classList.add('busy');
+  try {
+    const r = await fetch(`${getBackendUrl()}/entries/${e.id}/audio`, { headers: authHeaders() });
+    if (!r.ok) throw new Error(r.status === 404 ? 'аудіо не знайдено на сервері' : `HTTP ${r.status}`);
+    const blob = await r.blob();
+    if (detAudio !== a) return;  // stopped, or another entry was opened meanwhile
+    detUrl = URL.createObjectURL(blob);
+    a.src = detUrl;
+    a.onended = detStopAudio;
+    a.ontimeupdate = () => {
+      const bars = document.querySelectorAll('#detBars i'), n = Math.floor(a.currentTime / (a.duration || 1) * bars.length);
+      bars.forEach((b, i) => b.classList.toggle('p', i < n));
+    };
+    await a.play();
+    btn.classList.remove('busy'); btn.classList.add('on');
+  } catch (err) {
+    logError('detailPlay', err);
+    if (detAudio === a) { detStopAudio(); detMsg('Не вдалося відтворити: ' + err.message); }
+  }
+}
+
+// The saved entry is the review screen's paper card, read-only: same blocks, same order, same chips.
 function renderDetail(id) {
   const e = ENTRIES.find(x => x.id === id);
   if (!e) return false;
   currentDetailId = id;
-  const lE = look(EMO_STATE_LOOK, e.emotionalState, '💭'), lP = look(PHYS_STATE_LOOK, e.physicalState, '🏃');
-  const pE = 'pill-' + lE.tone, pP = 'pill-' + lP.tone;
-  const miniW = Array.from({length:28}, (_,i) =>
-    `<div class="mini-bar" style="height:${6+Math.round(Math.sin(i*0.7)*10+Math.random()*12)}px"></div>`).join('');
+  detStopAudio();
+  const vals = { valence: e.valence, energy: e.energy, control: e.control };
+  const pred = [e.predValence, e.predEnergy, e.predControl].every(v => v !== null)
+    ? { valence: e.predValence, energy: e.predEnergy, control: e.predControl } : null;
+  const chips = (kind, list) => list.length ? list.map(v => chipHtml(kind, v)).join('') : '<span class="rv-none">—</span>';
+  const kv = (k, v) => `<div class="rv-kv"><span>${k}</span><span>${esc(v || '—')}</span></div>`;
+  document.getElementById('detHdrS').textContent = e.date;
   document.getElementById('detailBody').innerHTML = `
-    <div class="det-eyebrow">${esc(e.entryType)} &nbsp;·&nbsp; ${esc(e.timeOfDay)}</div>
-    <div class="det-title">${esc(e.title)}</div>
-    <div class="det-pills">
-      <span class="pill ${pE}">${lE.emoji} ${esc(e.emotionalState)}</span>
-      <span class="pill ${pP}">${lP.emoji} ${esc(e.physicalState)}</span>
-    </div>
-    <div class="card-moods" style="margin-bottom:0">${e.mood.map(moodChip).join('')}</div>
-    <div class="divider"></div>
-    <div class="det-text">${esc(e.text)}</div>
-    ${e.context ? `<div class="det-label">Контекст</div><div class="det-value">${esc(e.context)}</div>` : ''}
-    ${e.project ? `<div class="det-label">Проект</div><div class="det-value">${esc(e.project)}</div>` : ''}
-    ${e.tags?.length ? `<div class="det-label">Теги</div><div class="det-tags">${e.tags.map(t=>`<span class="mood-chip">${esc(t)}</span>`).join('')}</div>` : ''}
-    <div class="det-audio">
-      <div class="mini-bars" style="height:24px">${miniW}</div>
-      <span class="sheet-dur">${esc(e.duration)}</span>
-    </div>
-    <div class="det-date">${esc(e.date)}</div>
-    <details class="det-tech"><summary>Технічні дані</summary>
-      <div class="errlog-box">id: ${esc(e.id)}
+    ${e.audioPath ? `<div class="rv-audio">
+      <button class="rv-play" id="detPlay" aria-label="Прослухати" onclick="detTogglePlay()">
+        <svg class="i-play" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21"/></svg>
+        <svg class="i-pause" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+      </button>
+      <div class="rv-bars" id="detBars">${waveHtml()}</div>
+      <span class="rv-dur">${esc(e.duration)}</span>
+    </div><div class="det-msg" id="detMsg" hidden></div>` : ''}
+    <div class="rv-paper">
+      <div class="rv-title ro">${esc(e.title)}</div>
+      <div class="rv-text ro">${esc(e.text)}</div>
+      <div class="rv-field"><div class="rv-lbl">Настрій</div><div class="rv-chips">${chips('mood', e.mood)}</div></div>
+      <div class="rv-field"><div class="rv-lbl">Оцінка стану</div>${stateOf(vals)
+        ? scaleReadonlyHtml(vals, pred) + `<div class="rv-derived">${derivedHtml(vals, pred)}</div>`
+        : `<div class="rv-chips">${chipHtml('state', e.emotionalState)}</div><div class="rv-hint">Шкали для цього запису не задавались</div>`}</div>
+      <div class="rv-field"><div class="rv-lbl">Теги</div><div class="rv-chips">${chips('tags', e.tags)}</div></div>
+      <div class="rv-field">${kv('Тип запису', e.entryType)}${kv('Час доби', e.timeOfDay)}${kv('Фізичний стан', e.physicalState)}${kv('Контекст', e.context)}${kv('Проект', e.project)}</div>
+      <details class="det-tech"><summary>Технічні дані</summary>
+        <div class="errlog-box">id: ${esc(e.id)}
 notion_page_id: ${esc(e.notionId || '—')}
 document_id: ${esc(e.docId || '—')}
+audio: ${esc(e.audioPath || '—')}
 довжина тексту: ${e.text.length}
 created_at: ${esc(e.createdAt || '—')}${e.local ? '\nтільки на пристрої' : ''}</div>
-    </details>`;
+      </details>
+    </div>`;
   return true;
 }
 
-/* ── Edit / delete ─────────────────────────────────── */
 function currentEntry() { return ENTRIES.find(x => x.id === currentDetailId); }
 const csv = v => v.split(',').map(x => x.trim()).filter(Boolean);
+
+let edScale = { valence: null, energy: null, control: null }, edPred = null;
+const edRender = () => drawScaleEditor(document.getElementById('edScales'), document.getElementById('edDerived'), edScale, edPred);
+bindScaleEditor(document.getElementById('edScales'), edRender);
 
 function openEdit() {
   const e = currentEntry();
   if (!e) return;
+  edScale = { valence: e.valence, energy: e.energy, control: e.control };
+  edPred = [e.predValence, e.predEnergy, e.predControl].every(v => v !== null)
+    ? { valence: e.predValence, energy: e.predEnergy, control: e.predControl } : null;
+  edRender();
   document.getElementById('editTitle').value = e.title;
   document.getElementById('editText').value  = e.text;
   document.getElementById('editTags').value  = e.tags.join(', ');
@@ -1871,11 +1903,14 @@ async function saveEdit() {
   const text  = document.getElementById('editText').value.trim();
   if (!e || !title || !text) { alert('Назва і текст не можуть бути порожніми'); return; }
   btn.disabled = true;
+  // scales go along only when all three are set and something changed; the server re-derives the state from them
+  const scaleChanges = stateOf(edScale) && SCALE_DEFS.some(sd => edScale[sd.key] !== e[sd.key]) ? { ...edScale } : {};
   try {
     const row = await apiEntry('PATCH', e.id, {
       title, text,
       tags: csv(document.getElementById('editTags').value),
       mood: csv(document.getElementById('editMood').value),
+      ...scaleChanges,
     });
     const i = ENTRIES.findIndex(x => x.id === e.id);
     ENTRIES[i] = normalizeEntry(row);
@@ -2230,16 +2265,19 @@ function rvShowText() {
   rvGrow();
 }
 
-function rvWave() {
-  rv('rvBars').innerHTML = Array.from({length: 38}, (_, i) =>
-    `<i style="height:${5 + Math.round(Math.abs(Math.sin(i * 1.7)) * 16 + (i % 3) * 2)}px"></i>`).join('');
-}
+// the same wave on the review and the detail screen (decorative: it is not the real signal)
+const waveHtml = () => Array.from({length: 38}, (_, i) =>
+  `<i style="height:${5 + Math.round(Math.abs(Math.sin(i * 1.7)) * 16 + (i % 3) * 2)}px"></i>`).join('');
+function rvWave() { rv('rvBars').innerHTML = waveHtml(); }
 
-function rvChip(kind, v, i) {
-  const l = kind === 'tags' ? { emoji: '', tone: 'tag' } : look(MOOD_LOOK, v, '');
+// One chip for every screen. `i` given → removable (review); omitted → read-only (detail).
+function chipHtml(kind, v, i) {
+  const l = kind === 'tags' ? { emoji: '', tone: 'tag' } : look(kind === 'state' ? EMO_STATE_LOOK : MOOD_LOOK, v, '');
   const cls = l.tone === 'ok' ? '' : l.tone;
-  return `<span class="rv-chip ${cls}">${l.emoji && kind !== 'tags' ? l.emoji + ' ' : ''}${esc(v)}<button class="rv-del" data-i="${i}" aria-label="Прибрати ${esc(v)}">×</button></span>`;
+  const del = i === undefined ? '' : `<button class="rv-del" data-i="${i}" aria-label="Прибрати ${esc(v)}">×</button>`;
+  return `<span class="rv-chip ${cls}">${l.emoji && kind !== 'tags' ? l.emoji + ' ' : ''}${esc(v)}${del}</span>`;
 }
+const rvChip = chipHtml;
 
 // @derive-state-start
 // Mirror of backend/app/scales.py::derive_state (a test keeps them identical).
@@ -2251,41 +2289,62 @@ function deriveState(v, e, c) {
 }
 // @derive-state-end
 
-const RV_SCALES = [
+const SCALE_DEFS = [
   { key: 'valence', title: 'Приємність', hint: 'як звучить запис: від неприємного до приємного',
     steps: ['Дуже неприємно', 'Неприємно', 'Нейтрально', 'Приємно', 'Дуже приємно'] },
   { key: 'energy', title: 'Енергія', hint: 'скільки сил: від виснаження до піднесення',
     steps: ['Виснаження', 'Млявість', 'Звичайна', 'Бадьорість', 'Піднесення'] },
-  { key: 'control', title: 'Контроль', hint: 'чи залежить це від мене: від безсилля до повного контролю',
+  { key: 'control', title: 'Контроль', hint: 'чи залежить це від мене: від безсилля до контролю',
     steps: ['Безсилля', 'Скоріше ні', 'Змішано', 'Скоріше так', 'Повний'] },
 ];
-const RV_SCALE_MARKS = ['−−', '−', '0', '+', '++'];
-const rvScaleOf = d => Object.fromEntries(RV_SCALES.map(s => [s.key, d && Number.isInteger(d[s.key]) && d[s.key] >= -2 && d[s.key] <= 2 ? d[s.key] : null]));
-const rvState = () => deriveState(rvScale.valence, rvScale.energy, rvScale.control);
+const SCALE_MARKS = ['−−', '−', '0', '+', '++'];
+const scaleOf = d => Object.fromEntries(SCALE_DEFS.map(s => [s.key, d && Number.isInteger(d[s.key]) && d[s.key] >= -2 && d[s.key] <= 2 ? d[s.key] : null]));
+const stateOf = v => deriveState(v.valence, v.energy, v.control);
+const rvState = () => stateOf(rvScale);
 
-function rvRenderScales() {
-  rv('rvScales').innerHTML = RV_SCALES.map(s => {
-    const cur = rvScale[s.key];
+// The state chip and its note, shared by the editor and the read-only view.
+function derivedHtml(vals, pred) {
+  const st = stateOf(vals), was = pred ? stateOf(pred) : null;
+  if (!st) return '<small>Задай усі три шкали — з’явиться стан</small>';
+  const l = look(EMO_STATE_LOOK, st, '');
+  return `<span class="rv-chip ${l.tone === 'ok' ? '' : l.tone}">${l.emoji ? l.emoji + ' ' : ''}${st}</span>` +
+    `<small>${was === null || was === st ? 'стан за трьома шкалами' : 'ти змінив: модель вгадала «' + was + '»'}</small>`;
+}
+
+// Editable: five buttons per scale; a dot marks the model's own guess. Used on the review screen and in the edit sheet.
+function drawScaleEditor(box, derivedBox, vals, pred) {
+  box._vals = vals;  // the click handler reads it from here, so replacing the state object stays safe
+  box.innerHTML = SCALE_DEFS.map(s => {
+    const cur = vals[s.key];
     const btns = [-2, -1, 0, 1, 2].map(n =>
-      `<button type="button" data-k="${s.key}" data-v="${n}" aria-pressed="${cur === n}" class="${rvPred && rvPred[s.key] === n ? 'pred' : ''}" ` +
-      `aria-label="${s.title}: ${s.steps[n + 2]}">${RV_SCALE_MARKS[n + 2]}</button>`).join('');
+      `<button type="button" data-k="${s.key}" data-v="${n}" aria-pressed="${cur === n}" class="${pred && pred[s.key] === n ? 'pred' : ''}" ` +
+      `aria-label="${s.title}: ${s.steps[n + 2]}">${SCALE_MARKS[n + 2]}</button>`).join('');
     return `<div class="rv-scale"><div class="rv-scale-hd"><b>${s.title}</b><span>${cur === null ? 'не задано' : s.steps[cur + 2]}</span></div>` +
       `<div class="rv-scale-hint">${s.hint}</div><div class="rv-scale-row">${btns}</div></div>`;
   }).join('');
-  const st = rvState(), was = rvPred ? deriveState(rvPred.valence, rvPred.energy, rvPred.control) : null;
-  const l = st ? look(EMO_STATE_LOOK, st, '') : null;
-  rv('rvDerived').innerHTML = st
-    ? `<span class="rv-chip ${l.tone === 'ok' ? '' : l.tone}">${l.emoji ? l.emoji + ' ' : ''}${st}</span>` +
-      `<small>${was === null || was === st ? 'стан за трьома шкалами' : 'ти змінив: модель вгадала «' + was + '»'}</small>`
-    : '<small>Задай усі три шкали — з’явиться стан</small>';
+  derivedBox.innerHTML = derivedHtml(vals, pred);
+}
+function bindScaleEditor(box, redraw) {
+  box.addEventListener('click', e => {
+    const b = e.target.closest('button[data-k]');
+    if (!b) return;
+    box._vals[b.dataset.k] = +b.dataset.v;
+    redraw();
+  });
 }
 
-rv('rvScales').addEventListener('click', e => {
-  const b = e.target.closest('button[data-k]');
-  if (!b) return;
-  rvScale[b.dataset.k] = +b.dataset.v;
-  rvRenderScales();
-});
+// Read-only: a five-step track per scale and, when the user corrected the model, what it had guessed.
+function scaleReadonlyHtml(vals, pred) {
+  return SCALE_DEFS.map(s => {
+    const v = vals[s.key], was = pred ? pred[s.key] : null;
+    const track = [-2, -1, 0, 1, 2].map(n => `<i class="${v === n ? 'on' : ''}"></i>`).join('');
+    const note = v !== null && was !== null && was !== v ? `<small>модель: ${s.steps[was + 2]}</small>` : '';
+    return `<div class="sc-row"><b>${s.title}</b><span class="sc-track">${track}</span><span class="sc-val">${v === null ? '—' : s.steps[v + 2]}${note}</span></div>`;
+  }).join('');
+}
+
+const rvRenderScales = () => drawScaleEditor(rv('rvScales'), rv('rvDerived'), rvScale, rvPred);
+bindScaleEditor(rv('rvScales'), () => rvRenderScales());
 
 function rvRenderFields() {
   const add = { mood: '+', tags: '+ тег' };
@@ -2484,7 +2543,7 @@ async function processEntry(segs) {
     rvEdited = data.text || text;
     rvView = 'edited';
     rvLists = { mood: [...(data.mood || [])], tags: [...(data.tags || [])] };
-    rvPred = rvScaleOf(data); rvScale = { ...rvPred };
+    rvPred = scaleOf(data); rvScale = { ...rvPred };
     [...rv('rvSeg').children].forEach(b => b.classList.toggle('on', b.dataset.v === 'edited'));
     rv('rvTitle').value = data.title || '';
     rvRenderFields();

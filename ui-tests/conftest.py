@@ -1,7 +1,10 @@
 import functools
 import http.server
+import io
 import json
+import re
 import threading
+import wave
 from pathlib import Path
 
 import pytest
@@ -26,7 +29,34 @@ ENTRIES = [
         "tags": ["робота"],
         "created_at": "2026-10-21T16:00:00Z",
     },
+    {
+        "id": 3,
+        "title": "Розмова з адвокатом",
+        "text": "Суддя пішов на лікарняний.\n\nЗасідання перенесли на два тижні.",
+        "mood": ["тривожний"],
+        "tags": ["суд"],
+        "entry_type": "Подія",
+        "time_of_day": "День",
+        "physical_state": "Нейтральний",
+        "context": "Дзвінок адвоката",
+        "project": "Квартира",
+        "duration": "0:03",
+        "emotional_state": "Гарний",
+        "valence": 1, "energy": 0, "control": 1,
+        "pred_valence": 0, "pred_energy": 0, "pred_control": 1,
+        "audio_path": "2026/10/" + "a" * 32 + ".opus",
+        "created_at": "2026-10-22T09:00:00Z",
+    },
 ]
+
+
+def silent_wav(seconds=3):
+    """A valid, quiet WAV: the stand-in for the saved recording the app downloads and plays."""
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1); w.setsampwidth(1); w.setframerate(8000)
+        w.writeframes(b"\x80" * 8000 * seconds)
+    return buf.getvalue()
 
 ENRICHED = {
     "title": "Відновлена думка",
@@ -64,10 +94,12 @@ def browser_context_args(browser_context_args, playwright):
 def open_app(page, site):
     """Opens the app with a mocked backend. `entries=None` makes /entries fail."""
 
-    def _open(entries=ENTRIES, transcribe=None, init_script=None, enriched=None):
+    def _open(entries=ENTRIES, transcribe=None, init_script=None, enriched=None, audio_status=200):
         """`transcribe`: optional callable(route) replacing the default successful /transcribe + /enrich.
         `enriched`: replaces the default /enrich response. Bodies POSTed to /save are collected in `page.saves`."""
         page.saves = []
+        page.patches = []          # bodies PATCHed to /entries/<id>
+        page.audio_requests = []   # headers of every /entries/<id>/audio request
 
         def handle(route):
             url = route.request.url
@@ -84,6 +116,17 @@ def open_app(page, site):
                 entry = json.loads(route.request.post_data)["entry"]
                 page.saves.append(entry)
                 return route.fulfill(json={**entry, "id": 99, "created_at": "2026-10-26T18:00:00Z"}, headers=cors)
+            m = re.search(r"/entries/(\d+)(/audio)?$", url)
+            if m and m.group(2):
+                page.audio_requests.append(route.request.headers)
+                if audio_status != 200:
+                    return route.fulfill(status=audio_status, body="no", headers=cors)
+                return route.fulfill(body=silent_wav(), headers={**cors, "content-type": "audio/wav"})
+            if m and route.request.method == "PATCH":
+                body = json.loads(route.request.post_data)
+                page.patches.append(body)
+                row = next(e for e in ENTRIES if e["id"] == int(m.group(1)))
+                return route.fulfill(json={**row, **body, "emotional_state": "Пригнічений"}, headers=cors)  # the server derives the label
             if url.endswith("/stats"):
                 return route.fulfill(json={"days": []}, headers=cors)
             return route.fulfill(status=503, body="down", headers=cors)

@@ -8,9 +8,133 @@ CARDS = "#listEntries .entry-card"
 
 def test_list_shows_entries_from_backend(open_app):
     page = open_app()
-    expect(page.locator(CARDS)).to_have_count(2)
+    expect(page.locator(CARDS)).to_have_count(3)
     expect(page.locator("#listEntries").get_by_text("Ранкова прогулянка")).to_be_visible()
     expect(page.locator("#backendBanner")).to_be_hidden()
+
+
+def test_opening_an_entry_from_the_list_hides_the_list_underneath(open_app):
+    page = open_app()
+    page.evaluate("showScreen('list')")
+    page.evaluate("openDetail(1)")
+    expect(page.locator("#detail")).to_have_class(re.compile("active"))
+    expect(page.locator("#list")).not_to_have_class(re.compile("active"))  # used to stay on screen behind the detail
+    page.evaluate("goBack()")
+    expect(page.locator("#list")).to_have_class(re.compile("active"))
+    expect(page.locator("#detail")).not_to_have_class(re.compile("active"))
+    page.evaluate("goBack()")
+    expect(page.locator("#home")).to_have_class(re.compile("active"))
+    expect(page.locator("#list")).not_to_have_class(re.compile("active"))
+
+
+def open_detail(page, entry_id):
+    page.evaluate(f"openDetail({entry_id})")
+    expect(page.locator("#detail")).to_have_class(re.compile("active"))
+
+
+def test_detail_is_the_review_card_read_only(open_app):
+    page = open_app()
+    open_detail(page, 3)
+    card = page.locator("#detail .rv-paper")
+    expect(card).to_be_visible()
+    expect(card.locator(".rv-title")).to_have_text("Розмова з адвокатом")
+    labels = card.locator(".rv-lbl").all_text_contents()
+    assert labels == ["Настрій", "Оцінка стану", "Теги"]  # the review screen's order
+    expect(card.locator(".rv-kv").first).to_contain_text("Тип запису")
+    assert page.locator("#detail textarea, #detail input").count() == 0
+    expect(page.locator("#detHdrS")).not_to_be_empty()
+
+
+def test_detail_shows_the_scales_and_what_the_model_had_guessed(open_app):
+    page = open_app()
+    open_detail(page, 3)
+    rows = page.locator("#detail .sc-row")
+    expect(rows).to_have_count(3)
+    expect(rows.nth(0)).to_contain_text("Приємність")
+    expect(rows.nth(0)).to_contain_text("Приємно")
+    expect(rows.nth(0)).to_contain_text("модель: Нейтрально")  # valence was corrected from 0 to +1
+    expect(rows.nth(2).locator("small")).to_have_count(0)      # control was left as guessed
+    expect(page.locator("#detail .rv-derived")).to_contain_text("Гарний")
+    expect(page.locator("#detail .rv-derived")).to_contain_text("модель вгадала «Нейтральний»")
+
+
+def test_detail_of_an_entry_without_scales_falls_back_to_the_state_chip(open_app):
+    page = open_app()
+    open_detail(page, 1)
+    expect(page.locator("#detail .sc-row")).to_have_count(0)
+    expect(page.locator("#detail")).to_contain_text("Шкали для цього запису не задавались")
+
+
+def test_player_only_appears_for_entries_with_saved_audio(open_app):
+    page = open_app()
+    open_detail(page, 1)
+    expect(page.locator("#detPlay")).to_have_count(0)
+    page.evaluate("goBack()")
+    open_detail(page, 3)
+    expect(page.locator("#detPlay")).to_have_count(1)
+    expect(page.locator("#detail .rv-audio .rv-dur")).to_have_text("0:03")
+
+
+def test_play_downloads_the_saved_audio_with_the_api_key_and_plays_it(open_app):
+    page = open_app()
+    open_detail(page, 3)
+    page.locator("#detPlay").dispatch_event("click")
+    expect(page.locator("#detPlay")).to_have_class(re.compile("on"))
+    assert len(page.audio_requests) == 1
+    assert page.audio_requests[0]["x-api-key"] == "test-key"
+    expect(page.locator("#detMsg")).to_be_hidden()
+    page.locator("#detPlay").dispatch_event("click")  # second tap stops
+    expect(page.locator("#detPlay")).not_to_have_class(re.compile("on"))
+
+
+def test_leaving_the_detail_stops_the_audio(open_app):
+    page = open_app()
+    open_detail(page, 3)
+    page.locator("#detPlay").dispatch_event("click")
+    expect(page.locator("#detPlay")).to_have_class(re.compile("on"))
+    page.evaluate("goBack()")
+    assert page.evaluate("detAudio") is None
+
+
+def test_missing_audio_on_the_server_is_explained(open_app):
+    page = open_app(audio_status=404)
+    open_detail(page, 3)
+    page.locator("#detPlay").dispatch_event("click")
+    expect(page.locator("#detMsg")).to_contain_text("не знайдено")
+    expect(page.locator("#detPlay")).not_to_have_class(re.compile("on|busy"))
+
+
+def test_a_device_that_cannot_play_opus_is_told_so_without_downloading(open_app):
+    page = open_app(init_script="HTMLMediaElement.prototype.canPlayType = () => '';")
+    open_detail(page, 3)
+    page.locator("#detPlay").dispatch_event("click")
+    expect(page.locator("#detMsg")).to_contain_text("Opus")
+    assert page.audio_requests == []
+
+
+def test_edit_sheet_has_the_same_scales_and_saves_the_changed_ones(open_app):
+    page = open_app()
+    open_detail(page, 3)
+    page.evaluate("openEdit()")
+    expect(page.locator('#edScales button[aria-pressed="true"]')).to_have_count(3)
+    page.locator('#edScales button[data-k="valence"][data-v="-1"]').click()
+    page.locator('#edScales button[data-k="control"][data-v="-2"]').click()
+    expect(page.locator("#edDerived")).to_contain_text("Пригнічений")
+    page.locator("#editSaveBtn").click()
+    expect(page.locator("#editSheet")).not_to_have_class(re.compile("up"))
+    sent = page.patches[0]
+    assert (sent["valence"], sent["energy"], sent["control"]) == (-1, 0, -2)
+    expect(page.locator("#detail .rv-derived")).to_contain_text("Пригнічений")  # the label the server returned
+    expect(page.locator("#detail .sc-row").nth(0)).to_contain_text("Неприємно")
+
+
+def test_edit_sheet_leaves_the_scales_alone_when_nothing_changed(open_app):
+    page = open_app()
+    open_detail(page, 3)
+    page.evaluate("openEdit()")
+    page.locator("#editSaveBtn").click()
+    expect(page.locator("#editSheet")).not_to_have_class(re.compile("up"))
+    assert not {"valence", "energy", "control"} & page.patches[0].keys()
 
 
 def test_banner_when_backend_is_down(open_app):
