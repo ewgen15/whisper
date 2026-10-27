@@ -1,6 +1,8 @@
 import os
 from supabase import create_client, Client
 
+from .audio import valid_audio_path
+
 _client: Client | None = None
 
 
@@ -29,6 +31,8 @@ def save_entry(data: dict) -> dict:
         "duration":        data.get("duration"),
         "date_label":      data.get("date_label"),
         "month_label":     data.get("month_label"),
+        # client-supplied: only a path our own /audio could have produced is kept
+        "audio_path":      data.get("audio_path") if valid_audio_path(data.get("audio_path")) else None,
     }
     result = get_client().table("entries").insert(row).execute()
     return result.data[0] if result.data else row

@@ -1156,7 +1156,7 @@ function fitScreenHeight() {
 }
 fitScreenHeight();
 addEventListener('resize', fitScreenHeight);
-const APP_VERSION = '2026-10-27.9cb9df';
+const APP_VERSION = '2026-10-27.7274a4';
 
 /* ── Error log (last 20, localStorage) ────────────── */
 const ERRLOG_KEY = 'diary_errlog';
@@ -2354,6 +2354,21 @@ function openReview(segs, title) {
   processEntry(segs);
 }
 
+async function uploadAudio(segs) {
+  const blobs = (segs || []).map(s => s.blob).filter(Boolean);
+  if (!blobs.length) return null;
+  try {
+    const fd = new FormData();
+    blobs.forEach((b, i) => fd.append('files', b, `part${i}.webm`));
+    const r = await fetch(`${getBackendUrl()}/audio`, { method: 'POST', body: fd, headers: authHeaders() });
+    if (!r.ok) throw new Error(`Audio: ${r.status}`);
+    return (await r.json()).audio_path || null;
+  } catch (e) {
+    logError('uploadAudio', e);
+    return null;
+  }
+}
+
 async function transcribeSegment(seg) {
   const fd = new FormData();
   fd.append('file', seg.blob, 'recording.webm');
@@ -2451,6 +2466,10 @@ async function saveEntry() {
     month_label: monthLabel(now),
   };
   rvSetState('saving');
+
+  // all segments → one file on the server; a failed upload must not block saving the text
+  const audioPath = await uploadAudio(lastSegs);
+  if (audioPath) payload.audio_path = audioPath;
 
   try {
     const res = await fetch(`${getBackendUrl()}/save`, {

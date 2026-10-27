@@ -4,10 +4,11 @@ import os
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 
+from .audio import MAX_TOTAL_BYTES, AudioError, delete_audio, resolve, store_audio
 from .enrichment import EDIT_LEVELS, PROVIDERS, MissingKeyError, enrich
 from .transcription import transcribe
 from .integrations import sync_entry, update_remote, delete_remote
@@ -148,6 +149,37 @@ async def enrich_text(req: EnrichRequest, request: Request):
         raise HTTPException(status_code=502, detail=f"{req.provider}: {type(e).__name__}")
 
 
+@app.post("/audio")
+async def upload_audio(files: list[UploadFile] = File(...)):
+    """Segments of one recording in order → one stored Opus file; the client puts the path into /save."""
+    parts, total = [], 0
+    for f in files:
+        base_type = (f.content_type or "").split(";")[0].strip()
+        if base_type not in ALLOWED_AUDIO_TYPES:
+            raise HTTPException(status_code=415, detail=f"Unsupported audio type: {f.content_type}")
+        data = await f.read()
+        total += len(data)
+        if total > MAX_TOTAL_BYTES:
+            raise HTTPException(status_code=413, detail="Audio too large")
+        if data:
+            parts.append((data, mimetypes.guess_extension(base_type) or ".audio"))
+    if not parts:
+        raise HTTPException(status_code=422, detail="Audio is empty")
+    try:
+        return {"audio_path": await run_in_threadpool(store_audio, parts)}
+    except AudioError:
+        raise HTTPException(status_code=422, detail="Could not process audio")
+
+
+@app.get("/entries/{entry_id}/audio")
+async def entry_audio(entry_id: int):
+    row = await run_in_threadpool(get_entry, entry_id)
+    f = resolve(row.get("audio_path")) if row and row.get("audio_path") else None
+    if f is None or not f.is_file():
+        raise HTTPException(status_code=404, detail="No audio")
+    return FileResponse(f, media_type="audio/ogg")
+
+
 @app.post("/save")
 async def save(req: SaveRequest):
     saved = save_entry(req.entry)
@@ -201,4 +233,5 @@ async def remove_entry(entry_id: int):
     # with an undeletable entry.
     sync = await run_in_threadpool(delete_remote, row)
     await run_in_threadpool(delete_entry, entry_id)
+    await run_in_threadpool(delete_audio, row.get("audio_path"))
     return {"deleted": True, "sync": sync}
