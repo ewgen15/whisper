@@ -32,7 +32,10 @@ ENRICHED = {
     "title": "Відновлена думка",
     "text": "Привіт, світе.",
     "mood": ["Спокійний"],
-    "emotional_state": "Спокій",
+    "valence": 1,
+    "energy": 0,
+    "control": 1,
+    "emotional_state": "Гарний",
     "physical_state": "Бадьорий",
     "entry_type": "Роздум",
     "time_of_day": "Вечір",
@@ -61,9 +64,9 @@ def browser_context_args(browser_context_args, playwright):
 def open_app(page, site):
     """Opens the app with a mocked backend. `entries=None` makes /entries fail."""
 
-    def _open(entries=ENTRIES, transcribe=None, init_script=None):
+    def _open(entries=ENTRIES, transcribe=None, init_script=None, enriched=None):
         """`transcribe`: optional callable(route) replacing the default successful /transcribe + /enrich.
-        Bodies POSTed to /save are collected in `page.saves`."""
+        `enriched`: replaces the default /enrich response. Bodies POSTed to /save are collected in `page.saves`."""
         page.saves = []
 
         def handle(route):
@@ -76,7 +79,7 @@ def open_app(page, site):
             if url.endswith("/transcribe"):
                 return transcribe(route) if transcribe else route.fulfill(json={"text": "Привіт"}, headers=cors)
             if url.endswith("/enrich"):
-                return route.fulfill(json=ENRICHED, headers=cors)
+                return route.fulfill(json=ENRICHED if enriched is None else enriched, headers=cors)
             if url.endswith("/save"):
                 entry = json.loads(route.request.post_data)["entry"]
                 page.saves.append(entry)

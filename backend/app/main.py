@@ -13,6 +13,7 @@ from .enrichment import EDIT_LEVELS, PROVIDERS, MissingKeyError, enrich
 from .transcription import transcribe
 from .integrations import sync_entry, update_remote, delete_remote
 from .ratelimit import RateLimiter
+from .scales import apply_scales
 from .stats import build_stats
 from .storage import (
     delete_entry, get_entries, get_entry, get_stats_rows, save_entry, set_entry_links, update_entry,
@@ -182,8 +183,9 @@ async def entry_audio(entry_id: int):
 
 @app.post("/save")
 async def save(req: SaveRequest):
-    saved = save_entry(req.entry)
-    sync, links = await run_in_threadpool(sync_entry, req.entry)
+    entry = apply_scales(req.entry)  # validates the scales and derives emotional_state from them
+    saved = save_entry(entry)
+    sync, links = await run_in_threadpool(sync_entry, entry)
     if links and saved.get("id") is not None:
         await run_in_threadpool(set_entry_links, saved["id"], links)
     result = {**saved, **links}

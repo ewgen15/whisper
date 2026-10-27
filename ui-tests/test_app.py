@@ -1,5 +1,6 @@
 import re
 
+from conftest import ENRICHED
 from playwright.sync_api import expect
 
 CARDS = "#listEntries .entry-card"
@@ -231,14 +232,53 @@ def test_raw_text_toggle_is_read_only_and_keeps_edits(open_app):
     expect(page.locator("#rvText")).to_have_value("Моя правка")
 
 
-def test_removing_a_chip_and_emotion_is_saved(open_app):
+def test_removing_a_mood_chip_is_saved(open_app):
     page = review_ready(open_app)
     page.locator("#rvMood .rv-del").click()
-    page.locator("#rvEmo .rv-del").click()
     page.locator("#rvSave").click()
     expect(page.locator("#review")).not_to_have_class(re.compile("active"))
     assert page.saves[0]["mood"] == []
-    assert page.saves[0]["emotional_state"] is None
+
+
+def scale(page, key, value):
+    page.locator(f'#rvScales button[data-k="{key}"][data-v="{value}"]').click()
+
+
+def test_scales_start_from_the_models_guess_and_show_the_derived_state(open_app):
+    page = review_ready(open_app)
+    for key, value in (("valence", "1"), ("energy", "0"), ("control", "1")):
+        expect(page.locator(f'#rvScales button[data-k="{key}"][data-v="{value}"]')).to_have_attribute("aria-pressed", "true")
+    expect(page.locator("#rvScales button.pred")).to_have_count(3)
+    expect(page.locator("#rvDerived")).to_contain_text("Гарний")
+    expect(page.locator("#rvDerived")).to_contain_text("стан за трьома шкалами")
+
+
+def test_correcting_the_scales_changes_the_state_and_saves_both_values(open_app):
+    page = review_ready(open_app)
+    scale(page, "valence", "-1")
+    scale(page, "control", "-2")
+    expect(page.locator("#rvDerived")).to_contain_text("Пригнічений")
+    expect(page.locator("#rvDerived")).to_contain_text("модель вгадала «Гарний»")
+    page.locator("#rvSave").click()
+    expect(page.locator("#review")).not_to_have_class(re.compile("active"))
+    sent = page.saves[0]
+    assert (sent["valence"], sent["energy"], sent["control"]) == (-1, 0, -2)
+    assert (sent["pred_valence"], sent["pred_energy"], sent["pred_control"]) == (1, 0, 1)
+    assert sent["emotional_state"] == "Пригнічений"
+
+
+def test_without_scales_from_the_backend_the_user_sets_them_and_saving_still_works(open_app):
+    enriched = {k: v for k, v in ENRICHED.items() if k not in ("valence", "energy", "control")}
+    page = open_app(enriched=enriched)
+    page.evaluate(SEED_DRAFT)
+    page.reload()
+    expect(page.locator("#rvSave")).to_be_enabled()
+    expect(page.locator("#rvDerived")).to_contain_text("Задай усі три шкали")
+    expect(page.locator("#rvScales button.pred")).to_have_count(0)
+    page.locator("#rvSave").click()  # nothing set: the model's own label (if any) is kept
+    expect(page.locator("#review")).not_to_have_class(re.compile("active"))
+    assert page.saves[0]["valence"] is None and page.saves[0]["pred_valence"] is None
+    assert page.saves[0]["emotional_state"] == "Гарний"
 
 
 def test_close_asks_before_deleting_and_can_be_cancelled(open_app):

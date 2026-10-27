@@ -2,6 +2,7 @@ import os
 from supabase import create_client, Client
 
 from .audio import valid_audio_path
+from .scales import PRED_PREFIX, SCALES
 
 _client: Client | None = None
 
@@ -31,6 +32,9 @@ def save_entry(data: dict) -> dict:
         "duration":        data.get("duration"),
         "date_label":      data.get("date_label"),
         "month_label":     data.get("month_label"),
+        # validated by scales.apply_scales; the pred_* columns keep what the model guessed next to what the user chose
+        **{k: data.get(k) for k in SCALES},
+        **{PRED_PREFIX + k: data.get(PRED_PREFIX + k) for k in SCALES},
         # client-supplied: only a path our own /audio could have produced is kept
         "audio_path":      data.get("audio_path") if valid_audio_path(data.get("audio_path")) else None,
     }

@@ -98,6 +98,19 @@ def _fake_gpt(*contents):
 
     class Completions:
         def create(self, **kw):
+            from app import enrichment
+
+            if kw["messages"][0]["content"] == enrichment._SCALES_PROMPT:  # the separate scales call is not part of these checks
+                class M:
+                    content = '{"valence":0,"energy":0,"control":0}'
+
+                class C:
+                    message = M()
+
+                class R:
+                    choices = [C()]
+
+                return R()
             seen.clear()
             seen.update(kw)
             calls.append(kw)
@@ -222,6 +235,10 @@ def test_anthropic_provider_uses_claude_models_and_parses_fenced_json(monkeypatc
 
     calls = _fake_claude(monkeypatch, "нова модель їсть токени", '```json\n{"title":"t","text":"x","mood":["спокійний"]}\n```')
     out = enrichment.enrich("нова мандель їздить токенів", edit_level="full", provider="anthropic", api_key="sk-ant-x")
+    scales = [c for c in calls if c[1]["system"] == enrichment._SCALES_PROMPT]
+    calls = [c for c in calls if c[1]["system"] != enrichment._SCALES_PROMPT]
+    assert len(scales) == 1 and scales[0][0] == "sk-ant-x"
+    assert scales[0][1]["model"] == enrichment.PROVIDERS["anthropic"]["extract"]  # the cheap model
     (key1, first), (key2, second) = calls
     assert key1 == key2 == "sk-ant-x"
     assert first["model"] == enrichment.PROVIDERS["anthropic"]["correct"]

@@ -590,6 +590,18 @@ body.has-banner .hdr {
 .rv-chip.bad  { background: rgba(170,90,50,0.13); color: rgb(140,70,30); }
 .rv-chip.tag  { background: none; border: 1px solid rgba(30,16,40,0.18); }
 .rv-chip .rv-del { all: unset; cursor: pointer; opacity: 0.45; padding: 0 2px; font-size: 0.95rem; line-height: 1; }
+.rv-scale { margin-top: 12px; }
+.rv-scale-hd { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 0.86rem; }
+.rv-scale-hd b { font-weight: 600; }
+.rv-scale-hd span { font-size: 0.74rem; opacity: 0.55; text-align: right; }
+.rv-scale-hint { font-size: 0.7rem; opacity: 0.42; margin: 1px 0 6px; }
+.rv-scale-row { display: flex; gap: 6px; }
+.rv-scale-row button { flex: 1; min-height: 40px; position: relative; font: inherit; font-size: 0.84rem; border-radius: 12px; border: 1px solid rgba(30,16,40,0.14); background: rgba(255,255,255,0.5); color: var(--plum); cursor: pointer; }
+.rv-scale-row button[aria-pressed="true"] { background: rgba(123,111,168,0.2); border-color: rgba(123,111,168,0.7); color: #5B4F8A; font-weight: 600; }
+.rv-scale-row button.pred::after { content: ''; position: absolute; left: 50%; bottom: 4px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: rgba(123,111,168,0.75); }
+.rv-derived { margin-top: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.8rem; }
+.rv-derived small { opacity: 0.5; }
+.rv-pred-note { text-transform: none; letter-spacing: 0; font-size: 0.68rem; opacity: 0.8; }
 .rv-add { font: inherit; font-size: 0.76rem; padding: 5px 12px; border-radius: 20px; border: 1px dashed rgba(30,16,40,0.28); background: none; color: var(--plum); opacity: 0.7; cursor: pointer; }
 .rv-add-in { font: inherit; font-size: 16px; width: 130px; padding: 4px 10px; border-radius: 20px; border: 1.5px solid rgba(123,111,168,0.5); outline: none; background: #fff; color: var(--plum); }
 .rv-more { margin-top: 18px; width: 100%; font: inherit; font-size: 0.8rem; background: none; border: none; border-top: 1px solid rgba(30,16,40,0.1); padding: 12px 0 0; text-align: left; color: var(--plum); opacity: 0.6; cursor: pointer; display: flex; justify-content: space-between; }
@@ -918,7 +930,7 @@ body.has-banner .hdr {
       <div class="rv-sk rv-sk-fields" style="margin-top:22px"><i style="width:30%"></i><i style="width:75%;height:26px"></i><i style="width:30%;margin-top:16px"></i><i style="width:60%;height:26px"></i></div>
       <div class="rv-fields" id="rvFields">
         <div class="rv-field"><div class="rv-lbl">Настрій</div><div class="rv-chips" id="rvMood" data-list="mood"></div></div>
-        <div class="rv-field"><div class="rv-lbl">Емоційний стан</div><div class="rv-chips" id="rvEmo" data-list="emo"></div></div>
+        <div class="rv-field"><div class="rv-lbl">Оцінка стану <span class="rv-pred-note">· крапка — прогноз моделі, виправ, якщо інакше</span></div><div id="rvScales"></div><div class="rv-derived" id="rvDerived"></div></div>
         <div class="rv-field"><div class="rv-lbl">Теги</div><div class="rv-chips" id="rvTags" data-list="tags"></div></div>
         <button class="rv-more" id="rvMore" onclick="rvToggleMore()"><span>Ще поля: тип, час доби, контекст, проект</span><span id="rvMoreArr">▾</span></button>
         <div class="rv-more-body" id="rvMoreBody"></div>
@@ -1156,7 +1168,7 @@ function fitScreenHeight() {
 }
 fitScreenHeight();
 addEventListener('resize', fitScreenHeight);
-const APP_VERSION = '2026-10-27.7274a4';
+const APP_VERSION = '2026-10-27.c5af7f';
 
 /* ── Error log (last 20, localStorage) ────────────── */
 const ERRLOG_KEY = 'diary_errlog';
@@ -2188,7 +2200,9 @@ let rvRun = 0;            // bumped on discard/new run so a late response cannot
 let rvView = 'edited';    // which text the textarea shows: edited | raw
 let rvEdited = '';        // the editable version of the text
 let rvRaw = '';           // transcript as Whisper heard it
-let rvLists = { mood: [], emo: [], tags: [] };
+let rvLists = { mood: [], tags: [] };
+let rvScale = { valence: null, energy: null, control: null };  // what will be saved (model's guess, as corrected by the user)
+let rvPred = null;        // the model's own guess, saved next to the user's values
 let rvDiscardMode = 'delete';
 
 function rvSetState(s) {
@@ -2222,18 +2236,65 @@ function rvWave() {
 }
 
 function rvChip(kind, v, i) {
-  const l = kind === 'tags' ? { emoji: '', tone: 'tag' } : look(kind === 'emo' ? EMO_STATE_LOOK : MOOD_LOOK, v, '');
+  const l = kind === 'tags' ? { emoji: '', tone: 'tag' } : look(MOOD_LOOK, v, '');
   const cls = l.tone === 'ok' ? '' : l.tone;
   return `<span class="rv-chip ${cls}">${l.emoji && kind !== 'tags' ? l.emoji + ' ' : ''}${esc(v)}<button class="rv-del" data-i="${i}" aria-label="Прибрати ${esc(v)}">×</button></span>`;
 }
 
+// @derive-state-start
+// Mirror of backend/app/scales.py::derive_state (a test keeps them identical).
+function deriveState(v, e, c) {
+  if (v === null || e === null || c === null) return null;
+  if (v >= 1) return e >= 1 ? 'Позитивний' : 'Гарний';
+  if (v <= -1) return c <= -1 ? 'Пригнічений' : 'Поганий';
+  return c <= -2 ? 'Пригнічений' : 'Нейтральний';
+}
+// @derive-state-end
+
+const RV_SCALES = [
+  { key: 'valence', title: 'Приємність', hint: 'як звучить запис: від неприємного до приємного',
+    steps: ['Дуже неприємно', 'Неприємно', 'Нейтрально', 'Приємно', 'Дуже приємно'] },
+  { key: 'energy', title: 'Енергія', hint: 'скільки сил: від виснаження до піднесення',
+    steps: ['Виснаження', 'Млявість', 'Звичайна', 'Бадьорість', 'Піднесення'] },
+  { key: 'control', title: 'Контроль', hint: 'чи залежить це від мене: від безсилля до повного контролю',
+    steps: ['Безсилля', 'Скоріше ні', 'Змішано', 'Скоріше так', 'Повний'] },
+];
+const RV_SCALE_MARKS = ['−−', '−', '0', '+', '++'];
+const rvScaleOf = d => Object.fromEntries(RV_SCALES.map(s => [s.key, d && Number.isInteger(d[s.key]) && d[s.key] >= -2 && d[s.key] <= 2 ? d[s.key] : null]));
+const rvState = () => deriveState(rvScale.valence, rvScale.energy, rvScale.control);
+
+function rvRenderScales() {
+  rv('rvScales').innerHTML = RV_SCALES.map(s => {
+    const cur = rvScale[s.key];
+    const btns = [-2, -1, 0, 1, 2].map(n =>
+      `<button type="button" data-k="${s.key}" data-v="${n}" aria-pressed="${cur === n}" class="${rvPred && rvPred[s.key] === n ? 'pred' : ''}" ` +
+      `aria-label="${s.title}: ${s.steps[n + 2]}">${RV_SCALE_MARKS[n + 2]}</button>`).join('');
+    return `<div class="rv-scale"><div class="rv-scale-hd"><b>${s.title}</b><span>${cur === null ? 'не задано' : s.steps[cur + 2]}</span></div>` +
+      `<div class="rv-scale-hint">${s.hint}</div><div class="rv-scale-row">${btns}</div></div>`;
+  }).join('');
+  const st = rvState(), was = rvPred ? deriveState(rvPred.valence, rvPred.energy, rvPred.control) : null;
+  const l = st ? look(EMO_STATE_LOOK, st, '') : null;
+  rv('rvDerived').innerHTML = st
+    ? `<span class="rv-chip ${l.tone === 'ok' ? '' : l.tone}">${l.emoji ? l.emoji + ' ' : ''}${st}</span>` +
+      `<small>${was === null || was === st ? 'стан за трьома шкалами' : 'ти змінив: модель вгадала «' + was + '»'}</small>`
+    : '<small>Задай усі три шкали — з’явиться стан</small>';
+}
+
+rv('rvScales').addEventListener('click', e => {
+  const b = e.target.closest('button[data-k]');
+  if (!b) return;
+  rvScale[b.dataset.k] = +b.dataset.v;
+  rvRenderScales();
+});
+
 function rvRenderFields() {
-  const add = { mood: '+', emo: '+', tags: '+ тег' };
-  for (const [kind, id] of [['mood', 'rvMood'], ['emo', 'rvEmo'], ['tags', 'rvTags']]) {
+  const add = { mood: '+', tags: '+ тег' };
+  for (const [kind, id] of [['mood', 'rvMood'], ['tags', 'rvTags']]) {
     const list = rvLists[kind];
     rv(id).innerHTML = list.map((v, i) => rvChip(kind, v, i)).join('') +
-      (kind === 'emo' && list.length ? '' : `<button class="rv-add" aria-label="Додати">${add[kind]}</button>`);
+      `<button class="rv-add" aria-label="Додати">${add[kind]}</button>`;
   }
+  rvRenderScales();
   const d = enrichedData || {};
   const kv = (k, v) => `<div class="rv-kv"><span>${k}</span><span>${esc(v || '—')}</span></div>`;
   rv('rvMoreBody').innerHTML = kv('Тип запису', d.entry_type) + kv('Час доби', d.time_of_day) +
@@ -2342,7 +2403,8 @@ function openReview(segs, title) {
   lastSegs = segs;
   enrichedData = null;
   rvView = 'edited'; rvEdited = ''; rvRaw = '';
-  rvLists = { mood: [], emo: [], tags: [] };
+  rvLists = { mood: [], tags: [] };
+  rvScale = { valence: null, energy: null, control: null }; rvPred = null;
   rv('rvHdrT').textContent = title || 'Новий запис';
   rv('rvHdrS').textContent = new Date().toLocaleString('uk', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
   rv('rvDur').textContent = fmt(elapsed);
@@ -2421,7 +2483,8 @@ async function processEntry(segs) {
     enrichedData = { ...data, rawText: text };
     rvEdited = data.text || text;
     rvView = 'edited';
-    rvLists = { mood: [...(data.mood || [])], emo: data.emotional_state ? [data.emotional_state] : [], tags: [...(data.tags || [])] };
+    rvLists = { mood: [...(data.mood || [])], tags: [...(data.tags || [])] };
+    rvPred = rvScaleOf(data); rvScale = { ...rvPred };
     [...rv('rvSeg').children].forEach(b => b.classList.toggle('on', b.dataset.v === 'edited'));
     rv('rvTitle').value = data.title || '';
     rvRenderFields();
@@ -2460,7 +2523,9 @@ async function saveEntry() {
     text,
     mood:            rvLists.mood,
     tags:            rvLists.tags,
-    emotional_state: rvLists.emo[0] || null,
+    emotional_state: rvState() || (enrichedData && enrichedData.emotional_state) || null,
+    valence: rvScale.valence, energy: rvScale.energy, control: rvScale.control,
+    pred_valence: rvPred && rvPred.valence, pred_energy: rvPred && rvPred.energy, pred_control: rvPred && rvPred.control,
     duration:    fmt(elapsed),
     date_label:  now.toLocaleString('uk',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}),
     month_label: monthLabel(now),

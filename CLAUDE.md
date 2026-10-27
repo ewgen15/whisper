@@ -92,6 +92,7 @@ docker run --rm -v "$PWD:/repo" -w /repo/backend python:3.11-slim sh -c \
 **Supabase** — проєкт «Vector AI Store» (`qvhndfdgczdtjxwlfsic`, eu-north-1), спільний з n8n:
 - `entries` — те, що читає застосунок у списку (`storage.py`). Зараз там лише записи з застосунку (поки мало), тоді як у `documents` уся історія.
 - `documents` — поля запису як в n8n (`topic`, `type`, `points` = рядок `• a • b`, …). Звідси ж `GET /stats` бере дати й настрої; `created_at` тут без часового поясу (трактуємо як UTC, день рахуємо за Києвом). Для старих записів n8n UTC не перевірено.
+- `entries.valence/energy/control` і `pred_*` — шкали −2..2 (`smallint`, nullable): що зберіг автор і що вгадала модель. Для записів до цієї фічі порожні.
 - `embeddings` — `content` (= `documents.text`), `metadata` (topic/tags/type/mood), `embedding vector(1536)`, `document_id`.
 - Модель embedding — **`text-embedding-ada-002`**. Вхідний рядок для вектора збирається в `integrations._embedding_input` у тому самому форматі, що й n8n-вузол («Назва теми: … Теги: … Ключові пункти: …»). **Не змінюй формат**, інакше нові вектори стануть непорівнянними зі старими.
 
@@ -100,7 +101,10 @@ docker run --rm -v "$PWD:/repo" -w /repo/backend python:3.11-slim sh -c \
 ## Промпт розбору (`enrichment.py`)
 
 - Рівень правки (`edit_level`, налаштування у застосунку): `none` — текст лишається як є; `light` — пунктуація й очевидні помилки; `full` — окремий прохід `gpt-4o` (`correct_transcript`) виправляє дивні слова за контекстом, потім `gpt-4o-mini` витягує поля. Сирий транскрипт завжди зберігається в `entries.raw_text`. При збої правки беремо сирий текст.
-- Повертає JSON: `title, text, mood, emotional_state, physical_state, context, project, people, tags, entry_type, time_of_day, points`.
+- Повертає JSON: `title, text, mood, physical_state, context, project, people, tags, entry_type, time_of_day, points` плюс три шкали `valence`, `energy`, `control` (цілі −2..2) і `emotional_state`.
+- **Емоційний стан не оцінює модель, його рахує код:** шкали дає окремий дешевий виклик (`_assess_scales`, промпт `_SCALES_PROMPT`), а `scales.derive_state` виводить стан (приємно+енергійно = Позитивний, приємно = Гарний, неприємно + немає контролю = Пригнічений, неприємно = Поганий, нейтрально = Нейтральний; контроль −2 робить Пригніченим навіть нейтральний тон). `/save` ще раз перераховує стан із шкал (`apply_scales`), тож він не розходиться з числами. Окремий виклик потрібен, бо ті самі шкали всередині великого промпту давали 13/36 збігів із розміткою автора проти ~17–18/36 окремим викликом.
+- На екрані оцінки автор бачить прогноз трьох шкал і може його виправити; `entries` зберігає і його значення (`valence/energy/control`), і прогноз моделі (`pred_*`). Браузерна копія `deriveState` у `docs/index.html` (між маркерами `@derive-state-start/end`) має збігатися з Python: це перевіряє `backend/tests/test_scales.py` через `node`.
+- Якість (розмітка автора, 36 записів): точний збіг стану ~47% (20 випадкових — 55%), стабільність між запусками 100%; деталі й методика в локальному `ANALYSIS-voice-and-mood.md`.
 - `time_of_day` **рахує код** за київським часом, не модель.
 - `project` та `people` — **експериментальні** поля (свідомо без глибокого допрацювання). `people` пишеться лише в Notion «Ім'я контакта».
 - Після зміни промпту проганяй реальні приклади (див. «Швидко перевірити» вище): `gpt-4o-mini` схильна копіювати значення з прикладу в промпті та вигадувати ролі («друг») — перевіряй `project`/`context` на записах, де їх немає.
